@@ -1,20 +1,43 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import type { FormEvent } from "react";
 import { Card } from "~/components/common/Card";
 import { PageHeader } from "~/components/common/PageHeader";
+import { LoadingOverlay } from "~/components/common/LoadingOverlay";
 import { RealtimeStatus } from "~/components/common/RealtimeStatus";
 import { FileField } from "~/components/forms/FileField";
 import { TextAreaField } from "~/components/forms/TextAreaField";
 import { TextField } from "~/components/forms/TextField";
-import { products } from "~/data/catalog";
-import { gymApi } from "~/services/gymApi";
+import { api } from "~/services/api";
 import type { Product } from "~/types/catalog/product";
 
 export default function InventarioCatalogo() {
   const [message, setMessage] = useState<string | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
-  const [productList, setProductList] = useState<Product[]>(products);
+  const [productList, setProductList] = useState<Product[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
   const [editingProduct, setEditingProduct] = useState<Product | null>(null);
+
+  useEffect(() => {
+    let isMounted = true;
+
+    const loadData = async () => {
+      const response = await api.listProducts();
+      if (!isMounted) return;
+      if (response.ok) {
+        setProductList(response.data);
+      } else {
+        setMessage(response.message ?? "No se pudieron cargar los productos.");
+      }
+      setIsLoading(false);
+    };
+
+    void loadData();
+
+    return () => {
+      isMounted = false;
+    };
+  }, []);
+
 
   const formKey = editingProduct?.id ?? "new";
 
@@ -31,9 +54,16 @@ export default function InventarioCatalogo() {
       units: Number(payload.units ?? 0),
       price: Number(payload.price ?? 0),
       description: payload.description ?? "",
+      imageUrl: payload.imageUrl ?? "",
     };
 
-    const response = await gymApi.createProduct(newProduct);
+    const response = await api.createProduct(newProduct);
+    if (!response.ok) {
+      setMessage(response.message ?? "No se pudo guardar el producto.");
+      setIsSubmitting(false);
+      return;
+    }
+
     setMessage(response.message ?? "Producto agregado.");
     setProductList((prev) =>
       editingProduct
@@ -46,6 +76,7 @@ export default function InventarioCatalogo() {
 
   return (
     <div className="space-y-8">
+      <LoadingOverlay isOpen={isLoading} />
       <PageHeader
         title="Catálogo de inventario"
         description="Inventario en tiempo real para ventas y reposición."

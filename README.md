@@ -1,57 +1,51 @@
-# 🪙 Crypto Dashboard
+# Academia de Barrio UI
 
-A simple and dynamic cryptocurrency dashboard built with **React Router (Framework mode)** and **TypeScript**, inspired by Remix v2 data APIs.  
-It displays real-time crypto prices from the **Coinbase public API**, allowing users to filter, reorder, and personalize their dashboard.
+Frontend de la Academia del Barrio construido con React Router + TypeScript.
 
-This project was built as a technical demo focusing on clean architecture, SSR, and modern React patterns.
+## Conexión con backend (`academia-del-barrio`)
 
----
+La capa `api` consume el backend OpenAPI usando una URL base por entorno.
 
-## 🚀 Tech Stack
+1. Crea tu archivo `.env` local (puedes copiar `.env.example`):
 
-- ⚛️ **React + TypeScript**
-- 🧭 **React Router (Framework / Data APIs)**  
-  Using loaders, actions, and SSR (successor of Remix v2 concepts)
-- 🎨 **Tailwind CSS v4 (CSS-first)**
-- 🖱️ **@dnd-kit** for drag & drop reordering
-- 🌐 **Coinbase Public API** for real-time prices
-- 🧪 **Vitest + Testing Library** for unit tests
-- 🍪 Cookie-based sessions for authentication
+```bash
+cp .env.example .env
+```
 
-> React Router framework supersedes Remix v2 while keeping the same mental model: loaders, actions, and server-side rendering.
+2. Define la URL del backend:
 
----
+```bash
+VITE_API_BASE_URL=http://localhost:8000
+```
 
-## ✨ Features
+> También se soporta `API_BASE_URL`, pero en cliente se recomienda `VITE_API_BASE_URL`.
 
-### 📊 Real-time Crypto Dashboard
-- Displays at least 10 cryptocurrencies (BTC, ETH, SOL, ADA, etc.)
-- Shows:
-  - USD price
-  - BTC conversion rate
-- Data fetched on the server using loaders.
+3. Levanta este proyecto normalmente:
 
-### 🔄 Drag & Drop Reordering
-- Reorder cards via drag & drop.
-- Order is persisted in **localStorage** during the session.
+```bash
+npm run dev
+```
 
-### 🔍 Filtering
-- Filter cryptos by name or symbol in real time.
+Si la variable no está definida, la UI mostrará un error de configuración al intentar consumir API.
 
-### 🌗 Dark / Light Mode
-- Toggle between light and dark themes.
-- Implemented using Tailwind v4 with class-based dark mode.
-- Theme preference stored in **localStorage**.
+## Estructura de servicios API
 
-### 💾 Persistence
-- Card order → localStorage  
-- Theme → localStorage
+- `app/services/api.ts`: punto de entrada agregado con todos los métodos.
+- `app/services/api-core.ts`: cliente reusable (`fetchApi`, configuración base y manejo de errores).
+- `app/services/modules/*`: cada recurso en su carpeta con:
+  - `constants.ts` (endpoints),
+  - `mappers.ts` (payloads/serialización),
+  - `service.ts` (funciones por dominio).
 
-### 🔐 Authentication (Demo Session)
-- Cookie-based session auth using React Router actions.
-- Routes are protected on the server.
-- Includes login & logout flow.
+## Endpoints base usados
 
-**Dummy credentials:**
-Email: demo@crypto.com
-Password: demo
+- Catálogo: `/catalog/memberships`, `/catalog/inventory`, `/catalog/promotions`, `/catalog/plans`
+- Admin: `/admin/roles`, `/admin/internal-users`, `/admin/personal-records`
+- Gym: `/gym/members`, `/gym/memberships`, `/gym/ingresos-qr`, `/gym/sales`
+
+## Scripts
+
+- `npm run dev` - desarrollo
+- `npm run build` - build de producción
+- `npm run start` - servir build
+- `npm run typecheck` - verificación de tipos

@@ -1,56 +1,83 @@
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import type { FormEvent } from "react";
 import { Card } from "~/components/common/Card";
 import { PageHeader } from "~/components/common/PageHeader";
+import { LoadingOverlay } from "~/components/common/LoadingOverlay";
 import { SelectField } from "~/components/forms/SelectField";
 import { TextField } from "~/components/forms/TextField";
-import { fightRecords, gymMembers } from "~/data/gym";
-import { gymApi } from "~/services/gymApi";
+import { api } from "~/services/api";
+import type { GymMember } from "~/types/gym/member";
 import type { FightRecord } from "~/types/gym/record";
 
 export default function RecordPersonal() {
   const [message, setMessage] = useState<string | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
-  const [selectedMemberId, setSelectedMemberId] = useState(
-    gymMembers[0]?.id ?? ""
-  );
-  const [record, setRecord] = useState<FightRecord>(() => {
-    const firstMember = gymMembers[0];
-    const existing =
-      fightRecords.find(
-        (item) =>
-          item.memberName === `${firstMember?.firstName} ${firstMember?.lastName}`
-      ) ?? fightRecords[0];
-    return (
-      existing ?? {
-        id: `REC-${Date.now()}`,
-        memberName: firstMember?.firstName ?? "",
-        category: "Sparring",
-        wins: 0,
-        losses: 0,
-        draws: 0,
-        winsByKo: 0,
-        winsByPoints: 0,
-      }
-    );
+  const [isLoading, setIsLoading] = useState(true);
+  const [members, setMembers] = useState<GymMember[]>([]);
+  const [records, setRecords] = useState<FightRecord[]>([]);
+  const [selectedMemberId, setSelectedMemberId] = useState("");
+  const [record, setRecord] = useState<FightRecord>({
+    id: `REC-${Date.now()}`,
+    memberId: "",
+    memberName: "",
+    category: "Sparring",
+    wins: 0,
+    losses: 0,
+    draws: 0,
+    winsByKo: 0,
+    winsByPoints: 0,
   });
 
+  useEffect(() => {
+    let isMounted = true;
+
+    const loadData = async () => {
+      const [membersResponse, recordsResponse] = await Promise.all([
+        api.listMembers(),
+        api.listRecords(),
+      ]);
+
+      if (!isMounted) return;
+
+      if (membersResponse.ok) {
+        setMembers(membersResponse.data);
+        const firstId = membersResponse.data[0]?.id ?? "";
+        setSelectedMemberId((prev) => prev || firstId);
+      } else {
+        setMessage(membersResponse.message ?? "No se pudieron cargar miembros.");
+      }
+
+      if (recordsResponse.ok) {
+        setRecords(recordsResponse.data);
+      }
+
+      setIsLoading(false);
+    };
+
+    void loadData();
+
+    return () => {
+      isMounted = false;
+    };
+  }, []);
+
   const selectedMember = useMemo(
-    () => gymMembers.find((member) => member.id === selectedMemberId),
-    [selectedMemberId]
+    () => members.find((member) => member.id === selectedMemberId),
+    [members, selectedMemberId]
   );
 
   const handleMemberChange = (memberId: string) => {
     setSelectedMemberId(memberId);
-    const member = gymMembers.find((item) => item.id === memberId);
+    const member = members.find((item) => item.id === memberId);
     const existing =
-      fightRecords.find(
+      records.find(
         (item) =>
           item.memberName === `${member?.firstName ?? ""} ${member?.lastName ?? ""}`
       ) ?? null;
     setRecord(
       existing ?? {
         id: `REC-${Date.now()}`,
+        memberId: member?.id,
         memberName: `${member?.firstName ?? ""} ${member?.lastName ?? ""}`,
         category: "Sparring",
         wins: 0,
@@ -71,6 +98,7 @@ export default function RecordPersonal() {
 
     const newRecord: FightRecord = {
       id: record.id,
+      memberId: selectedMember?.id,
       memberName: `${selectedMember?.firstName ?? ""} ${selectedMember?.lastName ?? ""}`,
       category: (payload.category as FightRecord["category"]) ?? "Sparring",
       wins: Number(payload.wins ?? 0),
@@ -80,13 +108,27 @@ export default function RecordPersonal() {
       winsByPoints: Number(payload.winsByPoints ?? 0),
     };
 
-    const response = await gymApi.registerRecord(newRecord);
+    const response = await api.registerRecord(newRecord);
+    if (!response.ok) {
+      setMessage(response.message ?? "No se pudo actualizar el récord.");
+      setIsSubmitting(false);
+      return;
+    }
+
     setMessage(response.message ?? "Record actualizado.");
+    setRecords((prev) => {
+      const exists = prev.some((item) => item.id === response.data.id);
+      if (exists) {
+        return prev.map((item) => (item.id === response.data.id ? response.data : item));
+      }
+      return [response.data, ...prev];
+    });
     setIsSubmitting(false);
   };
 
   return (
     <div className="space-y-8">
+      <LoadingOverlay isOpen={isLoading} />
       <PageHeader
         title="Perfil del miembro"
         description="Consulta y actualiza el record personal desde el detalle del alumno."
@@ -98,7 +140,7 @@ export default function RecordPersonal() {
             <SelectField
               label="Selecciona un miembro"
               name="memberId"
-              options={gymMembers.map((member) => ({
+              options={members.map((member) => ({
                 label: `${member.firstName} ${member.lastName}`,
                 value: member.id,
               }))}
@@ -200,7 +242,7 @@ export default function RecordPersonal() {
             Records recientes
           </h3>
           <div className="mt-4 space-y-4 text-sm text-zinc-600 dark:text-zinc-300">
-            {fightRecords.map((record) => (
+            {records.map((record) => (
               <div
                 key={record.id}
                 className="rounded-xl border border-zinc-100 p-3 dark:border-zinc-800"
