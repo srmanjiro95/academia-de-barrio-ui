@@ -16,8 +16,6 @@ export default function IngresosQr() {
     null
   );
 
-
-
   useEffect(() => {
     let isMounted = true;
 

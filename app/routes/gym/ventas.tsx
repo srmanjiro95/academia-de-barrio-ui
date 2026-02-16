@@ -32,8 +32,6 @@ export default function VentasGym() {
     [productQuantities, selectedProducts]
   );
 
-
-
   useEffect(() => {
     let isMounted = true;
 

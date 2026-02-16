@@ -87,6 +87,24 @@ export default function MiembrosGym() {
     };
   }, []);
 
+
+
+  useEffect(() => {
+    let isMounted = true;
+
+    const loadMembers = async () => {
+      const response = await api.listMembers();
+      if (!isMounted || !response.ok || response.data.length === 0) return;
+      setMembers(response.data);
+    };
+
+    void loadMembers();
+
+    return () => {
+      isMounted = false;
+    };
+  }, []);
+
   useEffect(() => {
     setBirthDate(editingMember?.birthDate ?? "");
     setMembershipId(editingMember?.membership?.id ?? "none");

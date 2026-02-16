@@ -18,8 +18,6 @@ export default function PlanesGym() {
   const [editingPlan, setEditingPlan] = useState<DevelopmentPlan | null>(null);
   const [planMembers, setPlanMembers] = useState<Record<string, string[]>>({});
 
-
-
   useEffect(() => {
     let isMounted = true;
 
@@ -45,6 +43,24 @@ export default function PlanesGym() {
     };
 
     void loadData();
+
+    return () => {
+      isMounted = false;
+    };
+  }, []);
+
+
+
+  useEffect(() => {
+    let isMounted = true;
+
+    const loadPlans = async () => {
+      const response = await api.listPlans();
+      if (!isMounted || !response.ok || response.data.length === 0) return;
+      setPlans(response.data);
+    };
+
+    void loadPlans();
 
     return () => {
       isMounted = false;
