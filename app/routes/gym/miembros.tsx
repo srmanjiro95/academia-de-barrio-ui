@@ -60,6 +60,24 @@ export default function MiembrosGym() {
     }, {} as Record<string, MemberDrawerProps["fightLogs"]>)
   );
 
+
+
+  useEffect(() => {
+    let isMounted = true;
+
+    const loadMembers = async () => {
+      const response = await gymApi.listMembers();
+      if (!isMounted || !response.ok || response.data.length === 0) return;
+      setMembers(response.data);
+    };
+
+    void loadMembers();
+
+    return () => {
+      isMounted = false;
+    };
+  }, []);
+
   useEffect(() => {
     setBirthDate(editingMember?.birthDate ?? "");
     setMembershipId(editingMember?.membership?.id ?? "none");
@@ -110,21 +128,27 @@ export default function MiembrosGym() {
     };
 
     const response = await gymApi.createMember(newMember);
+    if (!response.ok) {
+      setMessage(response.message ?? "No se pudo registrar el miembro.");
+      setIsSubmitting(false);
+      return;
+    }
+
     setMessage(response.message ?? "Miembro registrado.");
     setMembers((prev) =>
       editingMember
         ? prev.map((member) =>
-            member.id === editingMember.id ? newMember : member
+            member.id === editingMember.id ? response.data : member
           )
-        : [newMember, ...prev]
+        : [response.data, ...prev]
     );
     if (!editingMember) {
       setMemberRecords((prev) => ({
         ...prev,
-        [newMember.id]: createEmptyRecord(),
+        [response.data.id]: createEmptyRecord(),
       }));
-      setMemberPlans((prev) => ({ ...prev, [newMember.id]: null }));
-      setFightLogs((prev) => ({ ...prev, [newMember.id]: [] }));
+      setMemberPlans((prev) => ({ ...prev, [response.data.id]: null }));
+      setFightLogs((prev) => ({ ...prev, [response.data.id]: [] }));
     }
     setEditingMember(null);
     setIsSubmitting(false);

@@ -1,19 +1,39 @@
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { Card } from "~/components/common/Card";
 import { PageHeader } from "~/components/common/PageHeader";
 import { AddPlanDrawer } from "~/components/gym/AddPlanDrawer";
 import { PlanesDrawer } from "~/components/gym/PlanesDrawer";
 import { developmentPlans, gymMembers, planMembersByPlan } from "~/data/gym";
+import { gymApi } from "~/services/gymApi";
 import type { DevelopmentPlan } from "~/types/gym/plan";
 
 export default function PlanesGym() {
   const [selectedPlan, setSelectedPlan] = useState<DevelopmentPlan | null>(null);
+  const [message, setMessage] = useState<string | null>(null);
   const [isAddPlanOpen, setIsAddPlanOpen] = useState(false);
   const [plans, setPlans] = useState<DevelopmentPlan[]>(developmentPlans);
   const [editingPlan, setEditingPlan] = useState<DevelopmentPlan | null>(null);
   const [planMembers, setPlanMembers] = useState<Record<string, string[]>>(
     () => ({ ...planMembersByPlan })
   );
+
+
+
+  useEffect(() => {
+    let isMounted = true;
+
+    const loadPlans = async () => {
+      const response = await gymApi.listPlans();
+      if (!isMounted || !response.ok || response.data.length === 0) return;
+      setPlans(response.data);
+    };
+
+    void loadPlans();
+
+    return () => {
+      isMounted = false;
+    };
+  }, []);
 
   const selectedPlanMembers = useMemo(() => {
     if (!selectedPlan) return [];
@@ -28,13 +48,28 @@ export default function PlanesGym() {
     });
   };
 
-  const handleCreatePlan = (plan: DevelopmentPlan, memberIds: string[]) => {
+  const handleCreatePlan = async (plan: DevelopmentPlan, memberIds: string[]) => {
+    const planPayload: DevelopmentPlan = {
+      ...plan,
+      memberId: memberIds[0],
+      memberName: memberIds[0]
+        ? gymMembers.find((member) => member.id === memberIds[0])?.firstName ?? plan.memberName
+        : plan.memberName,
+    };
+
+    const response = await gymApi.createPlan(planPayload);
+    if (!response.ok) {
+      setMessage(response.message ?? "No se pudo guardar el plan.");
+      return;
+    }
+
+    setMessage(response.message ?? "Plan guardado.");
     setPlans((prev) =>
       editingPlan
-        ? prev.map((item) => (item.id === editingPlan.id ? plan : item))
-        : [plan, ...prev]
+        ? prev.map((item) => (item.id === editingPlan.id ? response.data : item))
+        : [response.data, ...prev]
     );
-    setPlanMembers((prev) => ({ ...prev, [plan.id]: memberIds }));
+    setPlanMembers((prev) => ({ ...prev, [response.data.id]: memberIds }));
     setIsAddPlanOpen(false);
     setEditingPlan(null);
   };
@@ -45,6 +80,8 @@ export default function PlanesGym() {
         title="Planes de desarrollo"
         description="Consulta los planes activos y gestiona los miembros vinculados."
       />
+
+      {message ? <p className="text-sm text-emerald-600">{message}</p> : null}
 
       <Card>
         <div className="flex flex-wrap items-center justify-between gap-3">

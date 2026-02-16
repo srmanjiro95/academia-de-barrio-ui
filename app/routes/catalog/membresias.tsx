@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import type { FormEvent } from "react";
 import { Card } from "~/components/common/Card";
 import { PageHeader } from "~/components/common/PageHeader";
@@ -18,6 +18,23 @@ export default function MembresiasCatalogo() {
     null
   );
 
+  useEffect(() => {
+    let isMounted = true;
+
+    const loadData = async () => {
+      const response = await gymApi.listMemberships();
+      if (!isMounted || !response.ok || response.data.length === 0) return;
+      setMembershipList(response.data);
+    };
+
+    void loadData();
+
+    return () => {
+      isMounted = false;
+    };
+  }, []);
+
+
   const formKey = editingMembership?.id ?? "new";
 
   const handleSubmit = async (event: FormEvent<HTMLFormElement>) => {
@@ -36,9 +53,16 @@ export default function MembresiasCatalogo() {
         .split("\n")
         .map((item) => item.trim())
         .filter(Boolean),
+      imageUrl: payload.imageUrl ?? "",
     };
 
     const response = await gymApi.createMembership(newMembership);
+    if (!response.ok) {
+      setMessage(response.message ?? "No se pudo crear la membresía.");
+      setIsSubmitting(false);
+      return;
+    }
+
     setMessage(response.message ?? "Membresía creada.");
     setMembershipList((prev) =>
       editingMembership

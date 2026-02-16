@@ -1,4 +1,4 @@
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import type { FormEvent } from "react";
 import { Card } from "~/components/common/Card";
 import { PageHeader } from "~/components/common/PageHeader";
@@ -11,13 +11,15 @@ import type { FightRecord } from "~/types/gym/record";
 export default function RecordPersonal() {
   const [message, setMessage] = useState<string | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [members, setMembers] = useState(gymMembers);
+  const [records, setRecords] = useState(fightRecords);
   const [selectedMemberId, setSelectedMemberId] = useState(
     gymMembers[0]?.id ?? ""
   );
   const [record, setRecord] = useState<FightRecord>(() => {
     const firstMember = gymMembers[0];
     const existing =
-      fightRecords.find(
+      records.find(
         (item) =>
           item.memberName === `${firstMember?.firstName} ${firstMember?.lastName}`
       ) ?? fightRecords[0];
@@ -35,16 +37,42 @@ export default function RecordPersonal() {
     );
   });
 
+  useEffect(() => {
+    let isMounted = true;
+
+    const loadData = async () => {
+      const [membersResponse, recordsResponse] = await Promise.all([
+        gymApi.listMembers(),
+        gymApi.listRecords(),
+      ]);
+
+      if (isMounted && membersResponse.ok && membersResponse.data.length > 0) {
+        setMembers(membersResponse.data);
+        setSelectedMemberId((prev) => prev || membersResponse.data[0].id);
+      }
+
+      if (isMounted && recordsResponse.ok && recordsResponse.data.length > 0) {
+        setRecords(recordsResponse.data);
+      }
+    };
+
+    void loadData();
+
+    return () => {
+      isMounted = false;
+    };
+  }, []);
+
   const selectedMember = useMemo(
-    () => gymMembers.find((member) => member.id === selectedMemberId),
-    [selectedMemberId]
+    () => members.find((member) => member.id === selectedMemberId),
+    [members, selectedMemberId]
   );
 
   const handleMemberChange = (memberId: string) => {
     setSelectedMemberId(memberId);
-    const member = gymMembers.find((item) => item.id === memberId);
+    const member = members.find((item) => item.id === memberId);
     const existing =
-      fightRecords.find(
+      records.find(
         (item) =>
           item.memberName === `${member?.firstName ?? ""} ${member?.lastName ?? ""}`
       ) ?? null;
@@ -81,7 +109,20 @@ export default function RecordPersonal() {
     };
 
     const response = await gymApi.registerRecord(newRecord);
+    if (!response.ok) {
+      setMessage(response.message ?? "No se pudo actualizar el récord.");
+      setIsSubmitting(false);
+      return;
+    }
+
     setMessage(response.message ?? "Record actualizado.");
+    setRecords((prev) => {
+      const exists = prev.some((item) => item.id === response.data.id);
+      if (exists) {
+        return prev.map((item) => (item.id === response.data.id ? response.data : item));
+      }
+      return [response.data, ...prev];
+    });
     setIsSubmitting(false);
   };
 
@@ -98,7 +139,7 @@ export default function RecordPersonal() {
             <SelectField
               label="Selecciona un miembro"
               name="memberId"
-              options={gymMembers.map((member) => ({
+              options={members.map((member) => ({
                 label: `${member.firstName} ${member.lastName}`,
                 value: member.id,
               }))}
@@ -200,7 +241,7 @@ export default function RecordPersonal() {
             Records recientes
           </h3>
           <div className="mt-4 space-y-4 text-sm text-zinc-600 dark:text-zinc-300">
-            {fightRecords.map((record) => (
+            {records.map((record) => (
               <div
                 key={record.id}
                 className="rounded-xl border border-zinc-100 p-3 dark:border-zinc-800"

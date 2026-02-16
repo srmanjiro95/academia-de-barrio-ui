@@ -1,17 +1,57 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { Card } from "~/components/common/Card";
 import { ConfirmationModal } from "~/components/common/ConfirmationModal";
 import { PageHeader } from "~/components/common/PageHeader";
 import { PromotionCard } from "~/components/gym/PromotionCard";
 import { PromotionFormDrawer } from "~/components/gym/PromotionFormDrawer";
 import { promotions as seedPromotions } from "~/data/promotions";
+import { gymApi } from "~/services/gymApi";
 import type { Promotion } from "~/types/gym/promotion";
 
 export default function PromocionesCatalogo() {
   const [promotions, setPromotions] = useState<Promotion[]>(seedPromotions);
+  const [message, setMessage] = useState<string | null>(null);
   const [isFormOpen, setIsFormOpen] = useState(false);
   const [editingPromotion, setEditingPromotion] = useState<Promotion | null>(null);
   const [deleteTarget, setDeleteTarget] = useState<Promotion | null>(null);
+
+  useEffect(() => {
+    let isMounted = true;
+
+    const loadData = async () => {
+      const response = await gymApi.listPromotions();
+      if (!isMounted || !response.ok || response.data.length === 0) return;
+      setPromotions(response.data);
+    };
+
+    void loadData();
+
+    return () => {
+      isMounted = false;
+    };
+  }, []);
+
+  const handleUpsertPromotion = async (promotion: Promotion) => {
+    const response = await gymApi.createPromotion(promotion);
+    if (!response.ok) {
+      setMessage(response.message ?? "No se pudo guardar la promoción.");
+      return;
+    }
+
+    setMessage(response.message ?? "Promoción guardada.");
+    const savedPromotion = response.data;
+
+    if (editingPromotion) {
+      setPromotions((prev) =>
+        prev.map((item) => (item.id === editingPromotion.id ? savedPromotion : item))
+      );
+      setEditingPromotion(null);
+      return;
+    }
+
+    setPromotions((prev) => [savedPromotion, ...prev]);
+    setIsFormOpen(false);
+  };
 
   return (
     <div className="space-y-8">
@@ -28,6 +68,8 @@ export default function PromocionesCatalogo() {
           </button>
         }
       />
+
+      {message ? <p className="text-sm text-emerald-600">{message}</p> : null}
 
       <Card>
         <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
@@ -49,8 +91,7 @@ export default function PromocionesCatalogo() {
         <PromotionFormDrawer
           onClose={() => setIsFormOpen(false)}
           onCreate={(promotion) => {
-            setPromotions((prev) => [promotion, ...prev]);
-            setIsFormOpen(false);
+            void handleUpsertPromotion(promotion);
           }}
         />
       ) : null}
@@ -60,10 +101,7 @@ export default function PromocionesCatalogo() {
           initialPromotion={editingPromotion}
           onClose={() => setEditingPromotion(null)}
           onCreate={(promotion) => {
-            setPromotions((prev) =>
-              prev.map((item) => (item.id === promotion.id ? promotion : item))
-            );
-            setEditingPromotion(null);
+            void handleUpsertPromotion(promotion);
           }}
         />
       ) : null}
