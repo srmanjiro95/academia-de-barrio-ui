@@ -44,8 +44,6 @@ export default function MembresiasGym() {
   const [isPromoSelectOpen, setIsPromoSelectOpen] = useState(false);
   const [isPromoFormOpen, setIsPromoFormOpen] = useState(false);
 
-
-
   useEffect(() => {
     let isMounted = true;
 

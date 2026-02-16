@@ -18,22 +18,22 @@ API_BASE_URL=http://localhost:8000
 npm run dev
 ```
 
-3. Si `API_BASE_URL` no está definida, la UI sigue funcionando en modo simulado (mock) para desarrollo frontend.
+3. Si `API_BASE_URL` no está definida, la UI seguirá funcionando en modo simulado (mock) para desarrollo de frontend.
 
-## Estructura de servicios API
+### Endpoints esperados por acción
 
-- `app/services/api.ts`: punto de entrada agregado con todos los métodos.
-- `app/services/api-core.ts`: cliente reusable (`fetchApi`, simulación, configuración base).
-- `app/services/modules/*`: cada recurso en su carpeta con:
-  - `constants.ts` (endpoints),
-  - `mappers.ts` (payloads/serialización),
-  - `service.ts` (funciones por dominio).
+- `POST /api/internal-users`
+- `POST /api/roles`
+- `POST /api/memberships`
+- `POST /api/products`
+- `POST /api/members`
+- `POST /api/check-ins`
+- `POST /api/fight-records`
+- `POST /api/sales`
+- `POST /api/member-memberships`
+- `POST /api/plans`
 
-## Endpoints base usados
-
-- Catálogo: `/catalog/memberships`, `/catalog/inventory`, `/catalog/promotions`, `/catalog/plans`
-- Admin: `/admin/roles`, `/admin/internal-users`, `/admin/personal-records`
-- Gym: `/gym/members`, `/gym/memberships`, `/gym/ingresos-qr`, `/gym/sales`
+> Si en tu backend los paths son distintos, puedes mantener el mismo contrato y crear un router de compatibilidad o ajustar esta tabla en `app/services/gymApi.ts`.
 
 ## Scripts
 
