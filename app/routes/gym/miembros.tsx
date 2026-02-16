@@ -2,6 +2,7 @@ import { useEffect, useMemo, useState } from "react";
 import type { FormEvent } from "react";
 import { Card } from "~/components/common/Card";
 import { PageHeader } from "~/components/common/PageHeader";
+import { LoadingOverlay } from "~/components/common/LoadingOverlay";
 import { FileField } from "~/components/forms/FileField";
 import { FormSection } from "~/components/forms/FormSection";
 import { EmergencyContactsSection } from "~/components/forms/EmergencyContactsSection";
@@ -17,16 +18,15 @@ import {
   MemberDrawer,
   createEmptyRecord,
 } from "~/components/gym/MemberDrawer";
-import { developmentPlans, fightLogsByMember, gymMembers } from "~/data/gym";
-import { memberships } from "~/data/catalog";
-import { gymApi } from "~/services/gymApi";
+import { api } from "~/services/api";
 import type { GymMember } from "~/types/gym/member";
 import type { DevelopmentPlan } from "~/types/gym/plan";
 
 export default function MiembrosGym() {
   const [message, setMessage] = useState<string | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
-  const [members, setMembers] = useState<GymMember[]>(gymMembers);
+  const [members, setMembers] = useState<GymMember[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
   const [editingMember, setEditingMember] = useState<GymMember | null>(null);
   const [drawerMember, setDrawerMember] = useState<GymMember | null>(null);
   const [birthDate, setBirthDate] = useState("");
@@ -34,31 +34,58 @@ export default function MiembrosGym() {
   const formKey = editingMember?.id ?? "new";
   const [memberRecords, setMemberRecords] = useState<
     Record<string, Record<FightCategory, CategoryRecord>>
-  >(() =>
-    gymMembers.reduce((acc, member) => {
-      acc[member.id] = createEmptyRecord();
-      return acc;
-    }, {} as Record<string, Record<FightCategory, CategoryRecord>>)
-  );
-  const [plansCatalog, setPlansCatalog] = useState<DevelopmentPlan[]>(
-    developmentPlans
-  );
+  >({});
+  const [plansCatalog, setPlansCatalog] = useState<DevelopmentPlan[]>([]);
+  const [membershipsCatalog, setMembershipsCatalog] = useState<{ id: string; name: string }[]>([]);
   const [memberPlans, setMemberPlans] = useState<
     Record<string, DevelopmentPlan | null>
-  >(() =>
-    gymMembers.reduce((acc, member) => {
-      acc[member.id] = null;
-      return acc;
-    }, {} as Record<string, DevelopmentPlan | null>)
-  );
+  >({});
   const [fightLogs, setFightLogs] = useState<
     Record<string, MemberDrawerProps["fightLogs"]>
-  >(() =>
-    gymMembers.reduce((acc, member) => {
-      acc[member.id] = fightLogsByMember[member.id] ?? [];
-      return acc;
-    }, {} as Record<string, MemberDrawerProps["fightLogs"]>)
-  );
+  >({});
+
+
+
+  useEffect(() => {
+    let isMounted = true;
+
+    const loadData = async () => {
+      const [membersResponse, plansResponse, membershipsResponse] = await Promise.all([
+        api.listMembers(),
+        api.listPlans(),
+        api.listMemberships(),
+      ]);
+
+      if (!isMounted) return;
+
+      if (membersResponse.ok) {
+        setMembers(membersResponse.data);
+      } else {
+        setMessage(membersResponse.message ?? "No se pudieron cargar miembros.");
+      }
+
+      if (plansResponse.ok) {
+        setPlansCatalog(plansResponse.data);
+      }
+
+      if (membershipsResponse.ok) {
+        setMembershipsCatalog(
+          membershipsResponse.data.map((membership) => ({
+            id: membership.id,
+            name: membership.name,
+          }))
+        );
+      }
+
+      setIsLoading(false);
+    };
+
+    void loadData();
+
+    return () => {
+      isMounted = false;
+    };
+  }, []);
 
   useEffect(() => {
     setBirthDate(editingMember?.birthDate ?? "");
@@ -73,7 +100,7 @@ export default function MiembrosGym() {
     const payload = Object.fromEntries(formData) as Record<string, string>;
 
     const membershipSelection =
-      memberships.find((membership) => membership.id === membershipId) ?? null;
+      membershipsCatalog.find((membership) => membership.id === membershipId) ?? null;
     const manualMembershipName = payload.membership?.trim();
 
     const newMember: GymMember = {
@@ -109,22 +136,28 @@ export default function MiembrosGym() {
         : null,
     };
 
-    const response = await gymApi.createMember(newMember);
+    const response = await api.createMember(newMember);
+    if (!response.ok) {
+      setMessage(response.message ?? "No se pudo registrar el miembro.");
+      setIsSubmitting(false);
+      return;
+    }
+
     setMessage(response.message ?? "Miembro registrado.");
     setMembers((prev) =>
       editingMember
         ? prev.map((member) =>
-            member.id === editingMember.id ? newMember : member
+            member.id === editingMember.id ? response.data : member
           )
-        : [newMember, ...prev]
+        : [response.data, ...prev]
     );
     if (!editingMember) {
       setMemberRecords((prev) => ({
         ...prev,
-        [newMember.id]: createEmptyRecord(),
+        [response.data.id]: createEmptyRecord(),
       }));
-      setMemberPlans((prev) => ({ ...prev, [newMember.id]: null }));
-      setFightLogs((prev) => ({ ...prev, [newMember.id]: [] }));
+      setMemberPlans((prev) => ({ ...prev, [response.data.id]: null }));
+      setFightLogs((prev) => ({ ...prev, [response.data.id]: [] }));
     }
     setEditingMember(null);
     setIsSubmitting(false);
@@ -186,6 +219,7 @@ export default function MiembrosGym() {
 
   return (
     <div className="space-y-8">
+      <LoadingOverlay isOpen={isLoading} />
       <PageHeader
         title="Registro de miembros"
         description="Alta, baja y consulta de miembros del gimnasio."
@@ -258,7 +292,7 @@ export default function MiembrosGym() {
                 name="membershipId"
                 options={[
                   { label: "Sin asignar", value: "none" },
-                  ...memberships.map((membership) => ({
+                  ...membershipsCatalog.map((membership) => ({
                     label: membership.name,
                     value: membership.id,
                   })),
