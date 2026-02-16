@@ -1,57 +1,43 @@
-# 🪙 Crypto Dashboard
+# Academia de Barrio UI
 
-A simple and dynamic cryptocurrency dashboard built with **React Router (Framework mode)** and **TypeScript**, inspired by Remix v2 data APIs.  
-It displays real-time crypto prices from the **Coinbase public API**, allowing users to filter, reorder, and personalize their dashboard.
+Frontend de la Academia del Barrio construido con React Router + TypeScript.
 
-This project was built as a technical demo focusing on clean architecture, SSR, and modern React patterns.
+## Conexión con backend (`academia-del-barrio`)
 
----
+La capa `gymApi` ahora puede enviar peticiones reales al backend si configuras una URL base.
 
-## 🚀 Tech Stack
+1. Define la variable de entorno:
 
-- ⚛️ **React + TypeScript**
-- 🧭 **React Router (Framework / Data APIs)**  
-  Using loaders, actions, and SSR (successor of Remix v2 concepts)
-- 🎨 **Tailwind CSS v4 (CSS-first)**
-- 🖱️ **@dnd-kit** for drag & drop reordering
-- 🌐 **Coinbase Public API** for real-time prices
-- 🧪 **Vitest + Testing Library** for unit tests
-- 🍪 Cookie-based sessions for authentication
+```bash
+API_BASE_URL=http://localhost:8000
+```
 
-> React Router framework supersedes Remix v2 while keeping the same mental model: loaders, actions, and server-side rendering.
+2. Levanta este proyecto normalmente:
 
----
+```bash
+npm run dev
+```
 
-## ✨ Features
+3. Si `API_BASE_URL` no está definida, la UI seguirá funcionando en modo simulado (mock) para desarrollo de frontend.
 
-### 📊 Real-time Crypto Dashboard
-- Displays at least 10 cryptocurrencies (BTC, ETH, SOL, ADA, etc.)
-- Shows:
-  - USD price
-  - BTC conversion rate
-- Data fetched on the server using loaders.
+### Endpoints esperados por acción
 
-### 🔄 Drag & Drop Reordering
-- Reorder cards via drag & drop.
-- Order is persisted in **localStorage** during the session.
+- `POST /api/internal-users`
+- `POST /api/roles`
+- `POST /api/memberships`
+- `POST /api/products`
+- `POST /api/members`
+- `POST /api/check-ins`
+- `POST /api/fight-records`
+- `POST /api/sales`
+- `POST /api/member-memberships`
+- `POST /api/plans`
 
-### 🔍 Filtering
-- Filter cryptos by name or symbol in real time.
+> Si en tu backend los paths son distintos, puedes mantener el mismo contrato y crear un router de compatibilidad o ajustar esta tabla en `app/services/gymApi.ts`.
 
-### 🌗 Dark / Light Mode
-- Toggle between light and dark themes.
-- Implemented using Tailwind v4 with class-based dark mode.
-- Theme preference stored in **localStorage**.
+## Scripts
 
-### 💾 Persistence
-- Card order → localStorage  
-- Theme → localStorage
-
-### 🔐 Authentication (Demo Session)
-- Cookie-based session auth using React Router actions.
-- Routes are protected on the server.
-- Includes login & logout flow.
-
-**Dummy credentials:**
-Email: demo@crypto.com
-Password: demo
+- `npm run dev` - desarrollo
+- `npm run build` - build de producción
+- `npm run start` - servir build
+- `npm run typecheck` - verificación de tipos
