@@ -35,7 +35,6 @@ export function getApiBaseUrl() {
 function createUrl(path: string, query?: Record<string, string | number>) {
   const baseUrl = getApiBaseUrl();
   if (!baseUrl) return null;
-
   const normalizedPath = path.startsWith("/") ? path : `/${path}`;
   const url = new URL(`${baseUrl}${normalizedPath}`);
 
