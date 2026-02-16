@@ -19,7 +19,7 @@ import {
 } from "~/components/gym/MemberDrawer";
 import { developmentPlans, fightLogsByMember, gymMembers } from "~/data/gym";
 import { memberships } from "~/data/catalog";
-import { gymApi } from "~/services/gymApi";
+import { api } from "~/services/api";
 import type { GymMember } from "~/types/gym/member";
 import type { DevelopmentPlan } from "~/types/gym/plan";
 
@@ -59,6 +59,24 @@ export default function MiembrosGym() {
       return acc;
     }, {} as Record<string, MemberDrawerProps["fightLogs"]>)
   );
+
+
+
+  useEffect(() => {
+    let isMounted = true;
+
+    const loadMembers = async () => {
+      const response = await api.listMembers();
+      if (!isMounted || !response.ok || response.data.length === 0) return;
+      setMembers(response.data);
+    };
+
+    void loadMembers();
+
+    return () => {
+      isMounted = false;
+    };
+  }, []);
 
   useEffect(() => {
     setBirthDate(editingMember?.birthDate ?? "");
@@ -109,22 +127,28 @@ export default function MiembrosGym() {
         : null,
     };
 
-    const response = await gymApi.createMember(newMember);
+    const response = await api.createMember(newMember);
+    if (!response.ok) {
+      setMessage(response.message ?? "No se pudo registrar el miembro.");
+      setIsSubmitting(false);
+      return;
+    }
+
     setMessage(response.message ?? "Miembro registrado.");
     setMembers((prev) =>
       editingMember
         ? prev.map((member) =>
-            member.id === editingMember.id ? newMember : member
+            member.id === editingMember.id ? response.data : member
           )
-        : [newMember, ...prev]
+        : [response.data, ...prev]
     );
     if (!editingMember) {
       setMemberRecords((prev) => ({
         ...prev,
-        [newMember.id]: createEmptyRecord(),
+        [response.data.id]: createEmptyRecord(),
       }));
-      setMemberPlans((prev) => ({ ...prev, [newMember.id]: null }));
-      setFightLogs((prev) => ({ ...prev, [newMember.id]: [] }));
+      setMemberPlans((prev) => ({ ...prev, [response.data.id]: null }));
+      setFightLogs((prev) => ({ ...prev, [response.data.id]: [] }));
     }
     setEditingMember(null);
     setIsSubmitting(false);

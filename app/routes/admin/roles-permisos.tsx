@@ -1,11 +1,11 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import type { FormEvent } from "react";
 import { Card } from "~/components/common/Card";
 import { PageHeader } from "~/components/common/PageHeader";
 import { TextAreaField } from "~/components/forms/TextAreaField";
 import { TextField } from "~/components/forms/TextField";
 import { roles } from "~/data/admin";
-import { gymApi } from "~/services/gymApi";
+import { api } from "~/services/api";
 import type { Role } from "~/types/admin/role";
 
 export default function RolesPermisos() {
@@ -13,6 +13,23 @@ export default function RolesPermisos() {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [roleList, setRoleList] = useState<Role[]>(roles);
   const [editingRole, setEditingRole] = useState<Role | null>(null);
+
+  useEffect(() => {
+    let isMounted = true;
+
+    const loadData = async () => {
+      const response = await api.listRoles();
+      if (!isMounted || !response.ok || response.data.length === 0) return;
+      setRoleList(response.data);
+    };
+
+    void loadData();
+
+    return () => {
+      isMounted = false;
+    };
+  }, []);
+
 
   const formKey = editingRole?.id ?? "new";
 
@@ -29,10 +46,17 @@ export default function RolesPermisos() {
       permissions: (payload.permissions ?? "")
         .split(",")
         .map((permission) => permission.trim())
-        .filter(Boolean),
+        .filter(Boolean)
+        .map((permission) => ({ id: permission, name: permission })),
     };
 
-    const response = await gymApi.createRole(newRole);
+    const response = await api.createRole(newRole);
+    if (!response.ok) {
+      setMessage(response.message ?? "No se pudo crear el rol.");
+      setIsSubmitting(false);
+      return;
+    }
+
     setMessage(response.message ?? "Rol creado.");
     setRoleList((prev) =>
       editingRole
@@ -65,7 +89,7 @@ export default function RolesPermisos() {
               name="permissions"
               placeholder="Usuarios, Inventario, Membresías"
               className="md:col-span-2"
-              defaultValue={editingRole?.permissions.join(", ")}
+              defaultValue={editingRole?.permissions.map((permission) => permission.name).join(", ")}
             />
             <button
               type="submit"
@@ -105,7 +129,7 @@ export default function RolesPermisos() {
                   {role.name}
                 </p>
                 <p className="mt-1 text-xs text-zinc-500 dark:text-zinc-400">
-                  {role.permissions.join(" · ")}
+                  {role.permissions.map((permission) => permission.name).join(" · ")}
                 </p>
                 <div className="mt-3 flex items-center gap-2">
                   <button

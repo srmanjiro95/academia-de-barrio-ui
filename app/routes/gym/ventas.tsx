@@ -1,4 +1,4 @@
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import type { FormEvent } from "react";
 import { Card } from "~/components/common/Card";
 import { PageHeader } from "~/components/common/PageHeader";
@@ -6,17 +6,19 @@ import { SelectField } from "~/components/forms/SelectField";
 import { TextField } from "~/components/forms/TextField";
 import { products } from "~/data/catalog";
 import { sales } from "~/data/gym";
-import { gymApi } from "~/services/gymApi";
+import { api } from "~/services/api";
 import type { Sale } from "~/types/gym/sale";
 
 export default function VentasGym() {
   const [message, setMessage] = useState<string | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [productList, setProductList] = useState(products);
+  const [saleList, setSaleList] = useState(sales);
   const [productQuantities, setProductQuantities] = useState<Record<string, number>>(
     {}
   );
 
-  const selectedProducts = products.filter(
+  const selectedProducts = productList.filter(
     (product) => (productQuantities[product.id] ?? 0) > 0
   );
 
@@ -29,6 +31,33 @@ export default function VentasGym() {
     [productQuantities, selectedProducts]
   );
 
+
+
+  useEffect(() => {
+    let isMounted = true;
+
+    const loadData = async () => {
+      const [productsResponse, salesResponse] = await Promise.all([
+        api.listProducts(),
+        api.listSales(),
+      ]);
+
+      if (isMounted && productsResponse.ok && productsResponse.data.length > 0) {
+        setProductList(productsResponse.data);
+      }
+
+      if (isMounted && salesResponse.ok && salesResponse.data.length > 0) {
+        setSaleList(salesResponse.data);
+      }
+    };
+
+    void loadData();
+
+    return () => {
+      isMounted = false;
+    };
+  }, []);
+
   const handleSubmit = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
     setIsSubmitting(true);
@@ -40,6 +69,7 @@ export default function VentasGym() {
     const newSale: Sale = {
       id: `SALE-${Date.now()}`,
       customer: payload.customer ?? "",
+      productId: firstProduct?.id,
       product: firstProduct?.name ?? "Sin producto",
       quantity: selectedProducts.reduce(
         (sum, product) => sum + (productQuantities[product.id] ?? 0),
@@ -49,8 +79,16 @@ export default function VentasGym() {
       date: new Date().toISOString(),
     };
 
-    const response = await gymApi.registerSale(newSale);
+    const response = await api.registerSale(newSale);
+    if (!response.ok) {
+      setMessage(response.message ?? "No se pudo registrar la venta.");
+      setIsSubmitting(false);
+      return;
+    }
+
     setMessage(response.message ?? "Venta registrada.");
+    setSaleList((prev) => [response.data, ...prev]);
+    setProductQuantities({});
     setIsSubmitting(false);
   };
 
@@ -93,7 +131,7 @@ export default function VentasGym() {
                 Selecciona productos
               </p>
               <div className="grid gap-3 md:grid-cols-2">
-                {products.map((product) => (
+                {productList.map((product) => (
                   <button
                     key={product.id}
                     type="button"
@@ -195,7 +233,7 @@ export default function VentasGym() {
             Últimas ventas
           </h3>
           <div className="mt-4 space-y-4 text-sm text-zinc-600 dark:text-zinc-300">
-            {sales.map((sale) => (
+            {saleList.map((sale) => (
               <div
                 key={sale.id}
                 className="rounded-xl border border-zinc-100 p-3 dark:border-zinc-800"

@@ -1,4 +1,4 @@
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { AddMemberModal } from "~/components/gym/AddMemberModal";
 import { CancelMembershipModal } from "~/components/gym/CancelMembershipModal";
 import { MemberSelectCard } from "~/components/gym/MemberSelectCard";
@@ -12,7 +12,7 @@ import { PageHeader } from "~/components/common/PageHeader";
 import { memberMemberships, gymMembers } from "~/data/gym";
 import { memberships } from "~/data/catalog";
 import { promotions as initialPromotions } from "~/data/promotions";
-import { gymApi } from "~/services/gymApi";
+import { api } from "~/services/api";
 import type { GymMember } from "~/types/gym/member";
 import type { MemberMembership } from "~/types/gym/member-membership";
 import type { Promotion } from "~/types/gym/promotion";
@@ -43,6 +43,38 @@ export default function MembresiasGym() {
   );
   const [isPromoSelectOpen, setIsPromoSelectOpen] = useState(false);
   const [isPromoFormOpen, setIsPromoFormOpen] = useState(false);
+
+
+
+  useEffect(() => {
+    let isMounted = true;
+
+    const loadData = async () => {
+      const [membersResponse, assignmentsResponse, promotionsResponse] = await Promise.all([
+        api.listMembers(),
+        api.listMemberMemberships(),
+        api.listPromotions(),
+      ]);
+
+      if (isMounted && membersResponse.ok && membersResponse.data.length > 0) {
+        setMembers(membersResponse.data);
+      }
+
+      if (isMounted && assignmentsResponse.ok && assignmentsResponse.data.length > 0) {
+        setAssignments(assignmentsResponse.data);
+      }
+
+      if (isMounted && promotionsResponse.ok && promotionsResponse.data.length > 0) {
+        setPromotions(promotionsResponse.data);
+      }
+    };
+
+    void loadData();
+
+    return () => {
+      isMounted = false;
+    };
+  }, []);
 
   const selectedMember = useMemo(
     () => members.find((member) => member.id === selectedMemberId) ?? null,
@@ -80,14 +112,20 @@ export default function MembresiasGym() {
       status: "Vigente",
     };
 
-    const response = await gymApi.assignMembership(newAssignment);
+    const response = await api.assignMembership(newAssignment);
+    if (!response.ok) {
+      setMessage(response.message ?? "No se pudo asignar la membresía.");
+      setIsSubmitting(false);
+      return;
+    }
+
     setMessage(response.message ?? "Membresía asignada.");
     setAssignments((prev) =>
       editingAssignment
         ? prev.map((item) =>
-            item.id === editingAssignment.id ? newAssignment : item
+            item.id === editingAssignment.id ? response.data : item
           )
-        : [newAssignment, ...prev]
+        : [response.data, ...prev]
     );
     setEditingAssignment(null);
     setIsSubmitting(false);
@@ -366,10 +404,16 @@ export default function MembresiasGym() {
         <PromotionFormDrawer
           onClose={() => setIsPromoFormOpen(false)}
           onCreate={(promotion) => {
-            setPromotions((prev) => [promotion, ...prev]);
-            setSelectedPromotionId(promotion.id);
-            setPromoCode(promotion.code);
-            setIsPromoFormOpen(false);
+            void api.createPromotion(promotion).then((response) => {
+              if (!response.ok) {
+                setMessage(response.message ?? "No se pudo crear la promoción.");
+                return;
+              }
+              setPromotions((prev) => [response.data, ...prev]);
+              setSelectedPromotionId(response.data.id);
+              setPromoCode(response.data.code);
+              setIsPromoFormOpen(false);
+            });
           }}
         />
       ) : null}

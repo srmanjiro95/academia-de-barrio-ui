@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import type { FormEvent } from "react";
 import { Card } from "~/components/common/Card";
 import { PageHeader } from "~/components/common/PageHeader";
@@ -8,7 +8,7 @@ import { FormSection } from "~/components/forms/FormSection";
 import { TextAreaField } from "~/components/forms/TextAreaField";
 import { TextField } from "~/components/forms/TextField";
 import { internalUsers } from "~/data/admin";
-import { gymApi } from "~/services/gymApi";
+import { api } from "~/services/api";
 import type { InternalUser } from "~/types/admin/internal-user";
 
 export default function UsuariosInternos() {
@@ -16,6 +16,23 @@ export default function UsuariosInternos() {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [users, setUsers] = useState<InternalUser[]>(internalUsers);
   const [editingUser, setEditingUser] = useState<InternalUser | null>(null);
+
+  useEffect(() => {
+    let isMounted = true;
+
+    const loadData = async () => {
+      const response = await api.listInternalUsers();
+      if (!isMounted || !response.ok || response.data.length === 0) return;
+      setUsers(response.data);
+    };
+
+    void loadData();
+
+    return () => {
+      isMounted = false;
+    };
+  }, []);
+
 
   const formKey = editingUser?.id ?? "new";
 
@@ -49,7 +66,13 @@ export default function UsuariosInternos() {
       ],
     };
 
-    const response = await gymApi.createInternalUser(newUser);
+    const response = await api.createInternalUser(newUser);
+    if (!response.ok) {
+      setMessage(response.message ?? "No se pudo registrar el usuario.");
+      setIsSubmitting(false);
+      return;
+    }
+
     setMessage(response.message ?? "Usuario registrado.");
     setUsers((prev) =>
       editingUser

@@ -4,4 +4,5 @@ export interface Membership {
   price: number;
   duration: string;
   includes: string[];
+  imageUrl?: string;
 }

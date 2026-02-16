@@ -1,18 +1,37 @@
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { Card } from "~/components/common/Card";
 import { PageHeader } from "~/components/common/PageHeader";
 import { QrScannerPanel } from "~/components/gym/QrScannerPanel";
 import { checkIns } from "~/data/gym";
-import { gymApi } from "~/services/gymApi";
+import { api } from "~/services/api";
 import type { CheckIn } from "~/types/gym/checkin";
 
 export default function IngresosQr() {
   const [message, setMessage] = useState<string | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [scannerInput, setScannerInput] = useState("");
+  const [entries, setEntries] = useState<CheckIn[]>(checkIns);
   const [lastScan, setLastScan] = useState<{ value: string; time: string } | null>(
     null
   );
+
+
+
+  useEffect(() => {
+    let isMounted = true;
+
+    const loadData = async () => {
+      const response = await api.listCheckIns();
+      if (!isMounted || !response.ok || response.data.length === 0) return;
+      setEntries(response.data);
+    };
+
+    void loadData();
+
+    return () => {
+      isMounted = false;
+    };
+  }, []);
 
   const handleSubmit = async (scanValue?: string) => {
     const value = (scanValue ?? scannerInput).trim();
@@ -31,8 +50,15 @@ export default function IngresosQr() {
       status: "Aceptado",
     };
 
-    const response = await gymApi.registerCheckIn(newCheckIn);
+    const response = await api.registerCheckIn(newCheckIn);
+    if (!response.ok) {
+      setMessage(response.message ?? "No se pudo registrar el ingreso.");
+      setIsSubmitting(false);
+      return;
+    }
+
     setMessage(response.message ?? "Ingreso registrado.");
+    setEntries((prev) => [response.data, ...prev]);
     setScannerInput("");
     setLastScan({ value, time: timestamp });
     setIsSubmitting(false);
@@ -70,7 +96,7 @@ export default function IngresosQr() {
             Últimos accesos
           </h3>
           <ul className="mt-4 space-y-3 text-sm text-zinc-600 dark:text-zinc-300">
-            {checkIns.map((checkIn) => (
+            {entries.map((checkIn) => (
               <li
                 key={checkIn.id}
                 className="flex items-center justify-between rounded-xl border border-zinc-100 p-3 dark:border-zinc-800"

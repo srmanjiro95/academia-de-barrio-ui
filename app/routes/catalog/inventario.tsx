@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import type { FormEvent } from "react";
 import { Card } from "~/components/common/Card";
 import { PageHeader } from "~/components/common/PageHeader";
@@ -7,7 +7,7 @@ import { FileField } from "~/components/forms/FileField";
 import { TextAreaField } from "~/components/forms/TextAreaField";
 import { TextField } from "~/components/forms/TextField";
 import { products } from "~/data/catalog";
-import { gymApi } from "~/services/gymApi";
+import { api } from "~/services/api";
 import type { Product } from "~/types/catalog/product";
 
 export default function InventarioCatalogo() {
@@ -15,6 +15,23 @@ export default function InventarioCatalogo() {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [productList, setProductList] = useState<Product[]>(products);
   const [editingProduct, setEditingProduct] = useState<Product | null>(null);
+
+  useEffect(() => {
+    let isMounted = true;
+
+    const loadData = async () => {
+      const response = await api.listProducts();
+      if (!isMounted || !response.ok || response.data.length === 0) return;
+      setProductList(response.data);
+    };
+
+    void loadData();
+
+    return () => {
+      isMounted = false;
+    };
+  }, []);
+
 
   const formKey = editingProduct?.id ?? "new";
 
@@ -31,9 +48,16 @@ export default function InventarioCatalogo() {
       units: Number(payload.units ?? 0),
       price: Number(payload.price ?? 0),
       description: payload.description ?? "",
+      imageUrl: payload.imageUrl ?? "",
     };
 
-    const response = await gymApi.createProduct(newProduct);
+    const response = await api.createProduct(newProduct);
+    if (!response.ok) {
+      setMessage(response.message ?? "No se pudo guardar el producto.");
+      setIsSubmitting(false);
+      return;
+    }
+
     setMessage(response.message ?? "Producto agregado.");
     setProductList((prev) =>
       editingProduct
