@@ -28,7 +28,7 @@ npm run dev
 
 Si la variable no está definida, la UI mostrará un error de configuración al intentar consumir API.
 
-## Estructura de servicios API
+### Endpoints esperados por acción
 
 - `app/services/api.ts`: punto de entrada agregado con todos los métodos.
 - `app/services/api-core.ts`: cliente reusable (`fetchApi`, configuración base y manejo de errores).
@@ -37,11 +37,7 @@ Si la variable no está definida, la UI mostrará un error de configuración al 
   - `mappers.ts` (payloads/serialización),
   - `service.ts` (funciones por dominio).
 
-## Endpoints base usados
-
-- Catálogo: `/catalog/memberships`, `/catalog/inventory`, `/catalog/promotions`, `/catalog/plans`
-- Admin: `/admin/roles`, `/admin/internal-users`, `/admin/personal-records`
-- Gym: `/gym/members`, `/gym/memberships`, `/gym/ingresos-qr`, `/gym/sales`
+> Si en tu backend los paths son distintos, puedes mantener el mismo contrato y crear un router de compatibilidad o ajustar esta tabla en `app/services/gymApi.ts`.
 
 ## Scripts
 
