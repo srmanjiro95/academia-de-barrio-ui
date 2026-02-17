@@ -25,7 +25,11 @@ import {
   listInternalUsers,
   createInternalUser,
 } from "~/services/modules/internal-users/service";
-import { listMembers, createMember } from "~/services/modules/members/service";
+import {
+  listMembers,
+  createMember,
+  refreshMemberQr,
+} from "~/services/modules/members/service";
 import {
   listCheckIns,
   registerCheckIn,
@@ -57,6 +61,7 @@ interface ApiContract {
   createInternalUser: (payload: InternalUser) => Promise<ApiResult<InternalUser>>;
   listMembers: () => Promise<ApiResult<GymMember[]>>;
   createMember: (payload: GymMember) => Promise<ApiResult<GymMember>>;
+  refreshMemberQr: (memberId: string) => Promise<ApiResult<GymMember>>;
   listCheckIns: () => Promise<ApiResult<CheckIn[]>>;
   registerCheckIn: (payload: CheckIn) => Promise<ApiResult<CheckIn>>;
   listRecords: () => Promise<ApiResult<FightRecord[]>>;
@@ -83,6 +88,7 @@ export const api: ApiContract = {
   createInternalUser,
   listMembers,
   createMember,
+  refreshMemberQr,
   listCheckIns,
   registerCheckIn,
   listRecords,

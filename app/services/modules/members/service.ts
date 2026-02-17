@@ -1,6 +1,6 @@
 import type { ApiResult } from "~/services/api-core";
 import { fetchApi } from "~/services/api-core";
-import { MEMBERS_ENDPOINT } from "./constants";
+import { MEMBERS_ENDPOINT, buildRefreshQrEndpoint } from "./constants";
 import { fromApiMember, toApiMember } from "./mappers";
 import type { GymMember } from "~/types/gym/member";
 
@@ -27,4 +27,24 @@ export const createMember = async (
         message: "Miembro creado.",
       }
     : ({ ...response, data: payload } as ApiResult<GymMember>);
+};
+
+
+export const refreshMemberQr = async (
+  memberId: string
+): Promise<ApiResult<GymMember>> => {
+  const response = await fetchApi<any>(buildRefreshQrEndpoint(memberId), {
+    method: "POST",
+  });
+
+  return response.ok
+    ? {
+        ok: true,
+        data: fromApiMember(response.data),
+        message: "QR actualizado y correo enviado.",
+      }
+    : ({
+        ...response,
+        data: null as unknown as GymMember,
+      } as ApiResult<GymMember>);
 };

@@ -25,6 +25,7 @@ import type { DevelopmentPlan } from "~/types/gym/plan";
 export default function MiembrosGym() {
   const [message, setMessage] = useState<string | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [refreshingQrMemberId, setRefreshingQrMemberId] = useState<string | null>(null);
   const [members, setMembers] = useState<GymMember[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [editingMember, setEditingMember] = useState<GymMember | null>(null);
@@ -221,6 +222,26 @@ export default function MiembrosGym() {
       ...prev,
       [memberId]: selectedPlan,
     }));
+  };
+
+  const handleRefreshQr = async (memberId: string) => {
+    setRefreshingQrMemberId(memberId);
+    const response = await api.refreshMemberQr(memberId);
+
+    if (!response.ok) {
+      setMessage(response.message ?? "No se pudo actualizar el QR del miembro.");
+      setRefreshingQrMemberId(null);
+      return;
+    }
+
+    setMessage(response.message ?? "QR actualizado y correo enviado.");
+
+    setMembers((prev) =>
+      prev.map((member) => (member.id === memberId ? response.data : member))
+    );
+
+    setDrawerMember((prev) => (prev?.id === memberId ? response.data : prev));
+    setRefreshingQrMemberId(null);
   };
 
   const handleCreateCustomPlan: MemberDrawerProps["onCreateCustomPlan"] = (
@@ -462,6 +483,16 @@ export default function MiembrosGym() {
                   <p className="mt-1 text-xs">{member.email}</p>
                 </button>
                 <div className="mt-3 flex items-center gap-2">
+                  <button
+                    type="button"
+                    onClick={() => {
+                      void handleRefreshQr(member.id);
+                    }}
+                    disabled={refreshingQrMemberId === member.id}
+                    className="rounded-xl border border-emerald-200 px-3 py-1 text-xs font-semibold text-emerald-700 hover:bg-emerald-50 disabled:cursor-not-allowed disabled:opacity-60 dark:border-emerald-800 dark:text-emerald-300 dark:hover:bg-emerald-950/40"
+                  >
+                    {refreshingQrMemberId === member.id ? "Actualizando QR..." : "Refresh QR"}
+                  </button>
                   <button
                     type="button"
                     onClick={() => setEditingMember(member)}
