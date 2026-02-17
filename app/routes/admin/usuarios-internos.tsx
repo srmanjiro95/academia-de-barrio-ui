@@ -1,23 +1,47 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import type { FormEvent } from "react";
 import { Card } from "~/components/common/Card";
 import { PageHeader } from "~/components/common/PageHeader";
+import { LoadingOverlay } from "~/components/common/LoadingOverlay";
 import { FileField } from "~/components/forms/FileField";
 import { EmergencyContactsSection } from "~/components/forms/EmergencyContactsSection";
 import { FormSection } from "~/components/forms/FormSection";
 import { TextAreaField } from "~/components/forms/TextAreaField";
 import { TextField } from "~/components/forms/TextField";
-import { internalUsers } from "~/data/admin";
-import { gymApi } from "~/services/gymApi";
+import { api } from "~/services/api";
 import type { InternalUser } from "~/types/admin/internal-user";
 
 export default function UsuariosInternos() {
   const [message, setMessage] = useState<string | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
-  const [users, setUsers] = useState<InternalUser[]>(internalUsers);
+  const [users, setUsers] = useState<InternalUser[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
   const [editingUser, setEditingUser] = useState<InternalUser | null>(null);
+  const [formVersion, setFormVersion] = useState(0);
 
-  const formKey = editingUser?.id ?? "new";
+  useEffect(() => {
+    let isMounted = true;
+
+    const loadData = async () => {
+      const response = await api.listInternalUsers();
+      if (!isMounted) return;
+      if (response.ok) {
+        setUsers(response.data);
+      } else {
+        setMessage(response.message ?? "No se pudieron cargar los usuarios.");
+      }
+      setIsLoading(false);
+    };
+
+    void loadData();
+
+    return () => {
+      isMounted = false;
+    };
+  }, []);
+
+
+  const formKey = editingUser?.id ?? `new-${formVersion}`;
 
   const handleSubmit = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
@@ -25,6 +49,19 @@ export default function UsuariosInternos() {
     setMessage(null);
     const formData = new FormData(event.currentTarget);
     const payload = Object.fromEntries(formData) as Record<string, string>;
+    const imageFile = formData.get("imageFile");
+
+    let imageUrl = editingUser?.imageUrl ?? "";
+
+    if (imageFile instanceof File && imageFile.size > 0) {
+      const uploadResponse = await api.uploadImage(imageFile, "internal-users");
+      if (!uploadResponse.ok) {
+        setMessage(uploadResponse.message ?? "No se pudo subir la foto del usuario.");
+        setIsSubmitting(false);
+        return;
+      }
+      imageUrl = uploadResponse.data.image_url;
+    }
 
     const newUser: InternalUser = {
       id: editingUser?.id ?? `IU-${Date.now()}`,
@@ -35,6 +72,7 @@ export default function UsuariosInternos() {
       phone: payload.phone ?? "",
       address: payload.address ?? "",
       role: payload.role ?? "",
+      imageUrl,
       emergencyContacts: [
         {
           name: payload.contactOneName ?? "",
@@ -49,19 +87,31 @@ export default function UsuariosInternos() {
       ],
     };
 
-    const response = await gymApi.createInternalUser(newUser);
+    const response = await api.createInternalUser(newUser);
+    if (!response.ok) {
+      setMessage(response.message ?? "No se pudo registrar el usuario.");
+      setIsSubmitting(false);
+      return;
+    }
+
     setMessage(response.message ?? "Usuario registrado.");
+    const isEditing = Boolean(editingUser);
+
     setUsers((prev) =>
-      editingUser
-        ? prev.map((user) => (user.id === editingUser.id ? newUser : user))
+      isEditing
+        ? prev.map((user) => (user.id === editingUser?.id ? newUser : user))
         : [newUser, ...prev]
     );
     setEditingUser(null);
+    if (!isEditing) {
+      setFormVersion((prev) => prev + 1);
+    }
     setIsSubmitting(false);
   };
 
   return (
     <div className="space-y-8">
+      <LoadingOverlay isOpen={isLoading} />
       <PageHeader
         title="Registro de usuarios internos"
         description="Gestiona el alta de personal administrativo, recepción y entrenadores."
@@ -79,7 +129,7 @@ export default function UsuariosInternos() {
               title="Datos personales"
               description="Información principal del usuario interno."
             >
-              <FileField label="Foto" name="photo" accept="image/*" />
+              <FileField label="Foto" name="imageFile" accept="image/*" />
               <TextField
                 label="Nombre"
                 name="firstName"
