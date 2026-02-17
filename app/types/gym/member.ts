@@ -17,4 +17,5 @@ export interface GymMember {
   emergencyContacts?: ContactInfo[];
   status: "Activo" | "Suspendido" | "Baja";
   membership: MembershipData | null;
+  imageUrl?: string;
 }

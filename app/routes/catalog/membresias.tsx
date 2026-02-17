@@ -1,22 +1,45 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import type { FormEvent } from "react";
 import { Card } from "~/components/common/Card";
 import { PageHeader } from "~/components/common/PageHeader";
+import { LoadingOverlay } from "~/components/common/LoadingOverlay";
 import { RealtimeStatus } from "~/components/common/RealtimeStatus";
 import { FileField } from "~/components/forms/FileField";
 import { TextAreaField } from "~/components/forms/TextAreaField";
 import { TextField } from "~/components/forms/TextField";
-import { memberships } from "~/data/catalog";
-import { gymApi } from "~/services/gymApi";
+import { api } from "~/services/api";
 import type { Membership } from "~/types/catalog/membership";
 
 export default function MembresiasCatalogo() {
   const [message, setMessage] = useState<string | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
-  const [membershipList, setMembershipList] = useState<Membership[]>(memberships);
+  const [membershipList, setMembershipList] = useState<Membership[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
   const [editingMembership, setEditingMembership] = useState<Membership | null>(
     null
   );
+
+  useEffect(() => {
+    let isMounted = true;
+
+    const loadData = async () => {
+      const response = await api.listMemberships();
+      if (!isMounted) return;
+      if (response.ok) {
+        setMembershipList(response.data);
+      } else {
+        setMessage(response.message ?? "No se pudieron cargar las membresías.");
+      }
+      setIsLoading(false);
+    };
+
+    void loadData();
+
+    return () => {
+      isMounted = false;
+    };
+  }, []);
+
 
   const formKey = editingMembership?.id ?? "new";
 
@@ -25,20 +48,39 @@ export default function MembresiasCatalogo() {
     setIsSubmitting(true);
     setMessage(null);
     const formData = new FormData(event.currentTarget);
-    const payload = Object.fromEntries(formData) as Record<string, string>;
+    const imageFile = formData.get("imageFile");
+
+    let imageUrl = editingMembership?.imageUrl ?? "";
+
+    if (imageFile instanceof File && imageFile.size > 0) {
+      const uploadResponse = await api.uploadImage(imageFile, "memberships");
+      if (!uploadResponse.ok) {
+        setMessage(uploadResponse.message ?? "No se pudo subir la imagen de la membresía.");
+        setIsSubmitting(false);
+        return;
+      }
+      imageUrl = uploadResponse.data.image_url;
+    }
 
     const newMembership: Membership = {
       id: editingMembership?.id ?? `MEM-${Date.now()}`,
-      name: payload.name ?? "",
-      price: Number(payload.price ?? 0),
-      duration: payload.duration ?? "",
-      includes: (payload.includes ?? "")
+      name: String(formData.get("name") ?? ""),
+      price: Number(formData.get("price") ?? 0),
+      duration: String(formData.get("duration") ?? ""),
+      includes: String(formData.get("includes") ?? "")
         .split("\n")
         .map((item) => item.trim())
         .filter(Boolean),
+      imageUrl,
     };
 
-    const response = await gymApi.createMembership(newMembership);
+    const response = await api.createMembership(newMembership);
+    if (!response.ok) {
+      setMessage(response.message ?? "No se pudo crear la membresía.");
+      setIsSubmitting(false);
+      return;
+    }
+
     setMessage(response.message ?? "Membresía creada.");
     setMembershipList((prev) =>
       editingMembership
@@ -53,6 +95,7 @@ export default function MembresiasCatalogo() {
 
   return (
     <div className="space-y-8">
+      <LoadingOverlay isOpen={isLoading} />
       <PageHeader
         title="Catálogo de membresías"
         description="Módulo en tiempo real para actualizar las membresías disponibles."
@@ -64,7 +107,7 @@ export default function MembresiasCatalogo() {
           <form key={formKey} onSubmit={handleSubmit} className="space-y-4">
             <FileField
               label="Imagen de la membresía"
-              name="imageUrl"
+              name="imageFile"
               accept="image/*"
               helperText="Sube el arte principal de la membresía."
             />

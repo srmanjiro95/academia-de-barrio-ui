@@ -1,5 +1,7 @@
 import { useMemo, useState } from "react";
 import { Card } from "~/components/common/Card";
+import { FileField } from "~/components/forms/FileField";
+import { api } from "~/services/api";
 import type {
   Promotion,
   PromotionDiscountType,
@@ -10,7 +12,7 @@ import type {
 interface PromotionFormDrawerProps {
   initialPromotion?: Promotion;
   onClose: () => void;
-  onCreate: (promotion: Promotion) => void;
+  onCreate: (promotion: Promotion) => void | Promise<void>;
 }
 
 const createPromoCode = () =>
@@ -39,6 +41,9 @@ export function PromotionFormDrawer({
     initialPromotion?.status ?? "Activo"
   );
   const [imageUrl, setImageUrl] = useState(initialPromotion?.imageUrl ?? "");
+  const [imageFile, setImageFile] = useState<File | null>(null);
+  const [errorMessage, setErrorMessage] = useState<string | null>(null);
+  const [isSubmitting, setIsSubmitting] = useState(false);
   const [code, setCode] = useState(
     initialPromotion?.code ?? createPromoCode()
   );
@@ -49,7 +54,8 @@ export function PromotionFormDrawer({
         ? "Porcentaje"
         : "Monto fijo"
       : "Monto de inscripción";
-  const maxAmount = type === "Descuento" && discountType === "Porcentaje" ? 100 : undefined;
+  const maxAmount =
+    type === "Descuento" && discountType === "Porcentaje" ? 100 : undefined;
 
   const previewPromotion = useMemo<Promotion>(
     () => ({
@@ -70,15 +76,38 @@ export function PromotionFormDrawer({
     [amount, code, description, discountType, endDate, imageUrl, startDate, status, title, type]
   );
 
-  const handleSubmit = () => {
-    if (!title || !description || !startDate || !endDate || !imageUrl) return;
+  const handleSubmit = async () => {
+    if (!title || !description || !startDate || !endDate) return;
+    if (!imageUrl && !imageFile) return;
     if (amount < 1) return;
     if (maxAmount && amount > maxAmount) return;
+
+    setErrorMessage(null);
+    setIsSubmitting(true);
+
+    let nextImageUrl = imageUrl;
+
+    if (imageFile) {
+      const uploadResponse = await api.uploadImage(imageFile, "promotions");
+      if (!uploadResponse.ok) {
+        setErrorMessage(
+          uploadResponse.message ?? "No se pudo subir la imagen de la promoción."
+        );
+        setIsSubmitting(false);
+        return;
+      }
+      nextImageUrl = uploadResponse.data.image_url;
+      setImageUrl(nextImageUrl);
+    }
+
     const promotion: Promotion = {
       ...previewPromotion,
+      imageUrl: nextImageUrl,
       id: initialPromotion?.id ?? `PROMO-${Date.now()}`,
     };
-    onCreate(promotion);
+
+    await onCreate(promotion);
+    setIsSubmitting(false);
   };
 
   return (
@@ -117,14 +146,18 @@ export function PromotionFormDrawer({
               className="w-full rounded-xl border border-zinc-200 bg-white px-3 py-2 text-sm text-zinc-900 shadow-sm focus:border-zinc-400 focus:outline-none dark:border-zinc-700 dark:bg-zinc-950 dark:text-zinc-100"
             />
           </div>
-          <div className="space-y-2 text-sm text-zinc-700 dark:text-zinc-200">
-            <span className="font-medium">Imagen (URL)</span>
-            <input
-              value={imageUrl}
-              onChange={(event) => setImageUrl(event.target.value)}
-              className="w-full rounded-xl border border-zinc-200 bg-white px-3 py-2 text-sm text-zinc-900 shadow-sm focus:border-zinc-400 focus:outline-none dark:border-zinc-700 dark:bg-zinc-950 dark:text-zinc-100"
-            />
-          </div>
+          <FileField
+            label="Imagen"
+            name="imageFile"
+            accept="image/*"
+            onChange={setImageFile}
+            helperText={
+              imageUrl
+                ? "Selecciona una nueva imagen si deseas reemplazar la actual."
+                : "Sube la imagen principal de la promoción."
+            }
+          />
+          {errorMessage ? <p className="text-sm text-red-600">{errorMessage}</p> : null}
           <div className="grid gap-3 md:grid-cols-2">
             <div className="space-y-2 text-sm text-zinc-700 dark:text-zinc-200">
               <span className="font-medium">Tipo de promoción</span>
@@ -255,10 +288,17 @@ export function PromotionFormDrawer({
           </button>
           <button
             type="button"
-            onClick={handleSubmit}
-            className="rounded-xl bg-emerald-600 px-4 py-2 text-sm font-semibold text-white"
+            onClick={() => {
+              void handleSubmit();
+            }}
+            disabled={isSubmitting}
+            className="rounded-xl bg-emerald-600 px-4 py-2 text-sm font-semibold text-white disabled:cursor-not-allowed disabled:opacity-60"
           >
-            {initialPromotion ? "Actualizar promoción" : "Guardar promoción"}
+            {isSubmitting
+              ? "Guardando..."
+              : initialPromotion
+              ? "Actualizar promoción"
+              : "Guardar promoción"}
           </button>
         </div>
       </aside>

@@ -1,20 +1,43 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import type { FormEvent } from "react";
 import { Card } from "~/components/common/Card";
 import { PageHeader } from "~/components/common/PageHeader";
+import { LoadingOverlay } from "~/components/common/LoadingOverlay";
 import { RealtimeStatus } from "~/components/common/RealtimeStatus";
 import { FileField } from "~/components/forms/FileField";
 import { TextAreaField } from "~/components/forms/TextAreaField";
 import { TextField } from "~/components/forms/TextField";
-import { products } from "~/data/catalog";
-import { gymApi } from "~/services/gymApi";
+import { api } from "~/services/api";
 import type { Product } from "~/types/catalog/product";
 
 export default function InventarioCatalogo() {
   const [message, setMessage] = useState<string | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
-  const [productList, setProductList] = useState<Product[]>(products);
+  const [productList, setProductList] = useState<Product[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
   const [editingProduct, setEditingProduct] = useState<Product | null>(null);
+
+  useEffect(() => {
+    let isMounted = true;
+
+    const loadData = async () => {
+      const response = await api.listProducts();
+      if (!isMounted) return;
+      if (response.ok) {
+        setProductList(response.data);
+      } else {
+        setMessage(response.message ?? "No se pudieron cargar los productos.");
+      }
+      setIsLoading(false);
+    };
+
+    void loadData();
+
+    return () => {
+      isMounted = false;
+    };
+  }, []);
+
 
   const formKey = editingProduct?.id ?? "new";
 
@@ -23,17 +46,36 @@ export default function InventarioCatalogo() {
     setIsSubmitting(true);
     setMessage(null);
     const formData = new FormData(event.currentTarget);
-    const payload = Object.fromEntries(formData) as Record<string, string>;
+    const imageFile = formData.get("imageFile");
+
+    let imageUrl = editingProduct?.imageUrl ?? "";
+
+    if (imageFile instanceof File && imageFile.size > 0) {
+      const uploadResponse = await api.uploadImage(imageFile, "inventory");
+      if (!uploadResponse.ok) {
+        setMessage(uploadResponse.message ?? "No se pudo subir la imagen del producto.");
+        setIsSubmitting(false);
+        return;
+      }
+      imageUrl = uploadResponse.data.image_url;
+    }
 
     const newProduct: Product = {
       id: editingProduct?.id ?? `PROD-${Date.now()}`,
-      name: payload.name ?? "",
-      units: Number(payload.units ?? 0),
-      price: Number(payload.price ?? 0),
-      description: payload.description ?? "",
+      name: String(formData.get("name") ?? ""),
+      units: Number(formData.get("units") ?? 0),
+      price: Number(formData.get("price") ?? 0),
+      description: String(formData.get("description") ?? ""),
+      imageUrl,
     };
 
-    const response = await gymApi.createProduct(newProduct);
+    const response = await api.createProduct(newProduct);
+    if (!response.ok) {
+      setMessage(response.message ?? "No se pudo guardar el producto.");
+      setIsSubmitting(false);
+      return;
+    }
+
     setMessage(response.message ?? "Producto agregado.");
     setProductList((prev) =>
       editingProduct
@@ -46,6 +88,7 @@ export default function InventarioCatalogo() {
 
   return (
     <div className="space-y-8">
+      <LoadingOverlay isOpen={isLoading} />
       <PageHeader
         title="Catálogo de inventario"
         description="Inventario en tiempo real para ventas y reposición."
@@ -57,7 +100,7 @@ export default function InventarioCatalogo() {
           <form key={formKey} onSubmit={handleSubmit} className="space-y-4">
             <FileField
               label="Foto del producto"
-              name="imageUrl"
+              name="imageFile"
               accept="image/*"
               helperText="Sube una imagen principal del producto."
             />

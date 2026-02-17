@@ -1,18 +1,41 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import type { FormEvent } from "react";
 import { Card } from "~/components/common/Card";
 import { PageHeader } from "~/components/common/PageHeader";
+import { LoadingOverlay } from "~/components/common/LoadingOverlay";
 import { TextAreaField } from "~/components/forms/TextAreaField";
 import { TextField } from "~/components/forms/TextField";
-import { roles } from "~/data/admin";
-import { gymApi } from "~/services/gymApi";
+import { api } from "~/services/api";
 import type { Role } from "~/types/admin/role";
 
 export default function RolesPermisos() {
   const [message, setMessage] = useState<string | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
-  const [roleList, setRoleList] = useState<Role[]>(roles);
+  const [roleList, setRoleList] = useState<Role[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
   const [editingRole, setEditingRole] = useState<Role | null>(null);
+
+  useEffect(() => {
+    let isMounted = true;
+
+    const loadData = async () => {
+      const response = await api.listRoles();
+      if (!isMounted) return;
+      if (response.ok) {
+        setRoleList(response.data);
+      } else {
+        setMessage(response.message ?? "No se pudieron cargar los roles.");
+      }
+      setIsLoading(false);
+    };
+
+    void loadData();
+
+    return () => {
+      isMounted = false;
+    };
+  }, []);
+
 
   const formKey = editingRole?.id ?? "new";
 
@@ -29,10 +52,17 @@ export default function RolesPermisos() {
       permissions: (payload.permissions ?? "")
         .split(",")
         .map((permission) => permission.trim())
-        .filter(Boolean),
+        .filter(Boolean)
+        .map((permission) => ({ id: permission, name: permission })),
     };
 
-    const response = await gymApi.createRole(newRole);
+    const response = await api.createRole(newRole);
+    if (!response.ok) {
+      setMessage(response.message ?? "No se pudo crear el rol.");
+      setIsSubmitting(false);
+      return;
+    }
+
     setMessage(response.message ?? "Rol creado.");
     setRoleList((prev) =>
       editingRole
@@ -45,6 +75,7 @@ export default function RolesPermisos() {
 
   return (
     <div className="space-y-8">
+      <LoadingOverlay isOpen={isLoading} />
       <PageHeader
         title="Roles y permisos"
         description="Define perfiles básicos para el equipo administrativo."
@@ -65,7 +96,7 @@ export default function RolesPermisos() {
               name="permissions"
               placeholder="Usuarios, Inventario, Membresías"
               className="md:col-span-2"
-              defaultValue={editingRole?.permissions.join(", ")}
+              defaultValue={editingRole?.permissions.map((permission) => permission.name).join(", ")}
             />
             <button
               type="submit"
@@ -105,7 +136,7 @@ export default function RolesPermisos() {
                   {role.name}
                 </p>
                 <p className="mt-1 text-xs text-zinc-500 dark:text-zinc-400">
-                  {role.permissions.join(" · ")}
+                  {role.permissions.map((permission) => permission.name).join(" · ")}
                 </p>
                 <div className="mt-3 flex items-center gap-2">
                   <button
