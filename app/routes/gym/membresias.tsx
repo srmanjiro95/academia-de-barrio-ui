@@ -383,6 +383,7 @@ export default function MembresiasGym() {
       <AddMemberModal
         isOpen={isAddMemberOpen}
         onClose={() => setIsAddMemberOpen(false)}
+        membershipOptions={membershipsCatalog.map((membership) => ({ id: membership.id, name: membership.name }))}
         onCreate={(member) => {
           setMembers((prev) => [member, ...prev]);
           setSelectedMemberId(member.id);
