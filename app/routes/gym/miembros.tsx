@@ -31,7 +31,8 @@ export default function MiembrosGym() {
   const [drawerMember, setDrawerMember] = useState<GymMember | null>(null);
   const [birthDate, setBirthDate] = useState("");
   const [membershipId, setMembershipId] = useState("none");
-  const formKey = editingMember?.id ?? "new";
+  const [formVersion, setFormVersion] = useState(0);
+  const formKey = editingMember?.id ?? `new-${formVersion}`;
   const [memberRecords, setMemberRecords] = useState<
     Record<string, Record<FightCategory, CategoryRecord>>
   >({});
@@ -158,20 +159,25 @@ export default function MiembrosGym() {
     }
 
     setMessage(response.message ?? "Miembro registrado.");
+    const isEditing = Boolean(editingMember);
+
     setMembers((prev) =>
-      editingMember
+      isEditing
         ? prev.map((member) =>
-            member.id === editingMember.id ? response.data : member
+            member.id === editingMember?.id ? response.data : member
           )
         : [response.data, ...prev]
     );
-    if (!editingMember) {
+    if (!isEditing) {
       setMemberRecords((prev) => ({
         ...prev,
         [response.data.id]: createEmptyRecord(),
       }));
       setMemberPlans((prev) => ({ ...prev, [response.data.id]: null }));
       setFightLogs((prev) => ({ ...prev, [response.data.id]: [] }));
+      setBirthDate("");
+      setMembershipId("none");
+      setFormVersion((prev) => prev + 1);
     }
     setEditingMember(null);
     setIsSubmitting(false);

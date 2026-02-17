@@ -37,23 +37,6 @@ function createUrl(path: string, query?: Record<string, string | number>) {
   if (!baseUrl) return null;
 
   const normalizedPath = path.startsWith("/") ? path : `/${path}`;
-
-  // 🔥 Si es ruta relativa (proxy), no usar new URL()
-  if (baseUrl.startsWith("/")) {
-    let finalUrl = `${baseUrl}${normalizedPath}`;
-
-    if (query) {
-      const params = new URLSearchParams();
-      Object.entries(query).forEach(([key, value]) => {
-        params.set(key, String(value));
-      });
-      finalUrl += `?${params.toString()}`;
-    }
-
-    return finalUrl;
-  }
-
-  // 🔥 Si es URL absoluta (producción)
   const url = new URL(`${baseUrl}${normalizedPath}`);
 
   if (query) {

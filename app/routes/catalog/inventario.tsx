@@ -16,6 +16,7 @@ export default function InventarioCatalogo() {
   const [productList, setProductList] = useState<Product[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [editingProduct, setEditingProduct] = useState<Product | null>(null);
+  const [formVersion, setFormVersion] = useState(0);
 
   useEffect(() => {
     let isMounted = true;
@@ -39,7 +40,7 @@ export default function InventarioCatalogo() {
   }, []);
 
 
-  const formKey = editingProduct?.id ?? "new";
+  const formKey = editingProduct?.id ?? `new-${formVersion}`;
 
   const handleSubmit = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
@@ -77,12 +78,17 @@ export default function InventarioCatalogo() {
     }
 
     setMessage(response.message ?? "Producto agregado.");
+    const isEditing = Boolean(editingProduct);
+
     setProductList((prev) =>
-      editingProduct
-        ? prev.map((item) => (item.id === editingProduct.id ? newProduct : item))
+      isEditing
+        ? prev.map((item) => (item.id === editingProduct?.id ? newProduct : item))
         : [newProduct, ...prev]
     );
     setEditingProduct(null);
+    if (!isEditing) {
+      setFormVersion((prev) => prev + 1);
+    }
     setIsSubmitting(false);
   };
 

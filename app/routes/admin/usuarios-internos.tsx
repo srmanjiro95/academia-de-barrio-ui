@@ -17,6 +17,7 @@ export default function UsuariosInternos() {
   const [users, setUsers] = useState<InternalUser[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [editingUser, setEditingUser] = useState<InternalUser | null>(null);
+  const [formVersion, setFormVersion] = useState(0);
 
   useEffect(() => {
     let isMounted = true;
@@ -40,7 +41,7 @@ export default function UsuariosInternos() {
   }, []);
 
 
-  const formKey = editingUser?.id ?? "new";
+  const formKey = editingUser?.id ?? `new-${formVersion}`;
 
   const handleSubmit = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
@@ -94,12 +95,17 @@ export default function UsuariosInternos() {
     }
 
     setMessage(response.message ?? "Usuario registrado.");
+    const isEditing = Boolean(editingUser);
+
     setUsers((prev) =>
-      editingUser
-        ? prev.map((user) => (user.id === editingUser.id ? newUser : user))
+      isEditing
+        ? prev.map((user) => (user.id === editingUser?.id ? newUser : user))
         : [newUser, ...prev]
     );
     setEditingUser(null);
+    if (!isEditing) {
+      setFormVersion((prev) => prev + 1);
+    }
     setIsSubmitting(false);
   };
 

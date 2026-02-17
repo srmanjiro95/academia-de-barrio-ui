@@ -18,6 +18,7 @@ export default function MembresiasCatalogo() {
   const [editingMembership, setEditingMembership] = useState<Membership | null>(
     null
   );
+  const [formVersion, setFormVersion] = useState(0);
 
   useEffect(() => {
     let isMounted = true;
@@ -41,7 +42,7 @@ export default function MembresiasCatalogo() {
   }, []);
 
 
-  const formKey = editingMembership?.id ?? "new";
+  const formKey = editingMembership?.id ?? `new-${formVersion}`;
 
   const handleSubmit = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
@@ -82,14 +83,19 @@ export default function MembresiasCatalogo() {
     }
 
     setMessage(response.message ?? "Membresía creada.");
+    const isEditing = Boolean(editingMembership);
+
     setMembershipList((prev) =>
-      editingMembership
+      isEditing
         ? prev.map((item) =>
-            item.id === editingMembership.id ? newMembership : item
+            item.id === editingMembership?.id ? newMembership : item
           )
         : [newMembership, ...prev]
     );
     setEditingMembership(null);
+    if (!isEditing) {
+      setFormVersion((prev) => prev + 1);
+    }
     setIsSubmitting(false);
   };
 
