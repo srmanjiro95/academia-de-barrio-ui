@@ -7,7 +7,7 @@ interface AppShellProps {
 
 export function AppShell({ children }: AppShellProps) {
   return (
-    <div className="min-h-screen bg-zinc-50 text-zinc-900 dark:bg-zinc-950 dark:text-zinc-50">
+    <div suppressHydrationWarning className="min-h-screen bg-zinc-50 text-zinc-900 dark:bg-zinc-950 dark:text-zinc-50">
       <div className="flex">
         <SidebarNav />
         <div className="flex min-h-screen flex-1 flex-col">
