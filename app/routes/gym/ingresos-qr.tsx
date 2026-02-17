@@ -6,6 +6,37 @@ import { QrScannerPanel } from "~/components/gym/QrScannerPanel";
 import { api } from "~/services/api";
 import type { CheckIn } from "~/types/gym/checkin";
 
+const QR_UUID_REGEX = /\b([a-f0-9]{32})\b/i;
+
+function extractQrUuid(rawValue: string): string | null {
+  const trimmed = rawValue.trim();
+  if (!trimmed) return null;
+
+  if (QR_UUID_REGEX.test(trimmed)) {
+    const match = trimmed.match(QR_UUID_REGEX);
+    return match?.[1]?.toLowerCase() ?? null;
+  }
+
+  try {
+    const parsedUrl = new URL(trimmed);
+    const candidate =
+      parsedUrl.searchParams.get("qr_uuid") ??
+      parsedUrl.searchParams.get("qr") ??
+      (() => {
+        const parts = parsedUrl.pathname.split("/").filter(Boolean);
+        return parts.length > 0 ? parts[parts.length - 1] : null;
+      })();
+
+    if (candidate && QR_UUID_REGEX.test(candidate)) {
+      return candidate.match(QR_UUID_REGEX)?.[1]?.toLowerCase() ?? null;
+    }
+  } catch {
+    // no-op: input may not be a URL
+  }
+
+  return null;
+}
+
 export default function IngresosQr() {
   const [message, setMessage] = useState<string | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -15,8 +46,6 @@ export default function IngresosQr() {
   const [lastScan, setLastScan] = useState<{ value: string; time: string } | null>(
     null
   );
-
-
 
   useEffect(() => {
     let isMounted = true;
@@ -41,37 +70,34 @@ export default function IngresosQr() {
 
   const handleSubmit = async (scanValue?: string) => {
     const value = (scanValue ?? scannerInput).trim();
-    if (!value) {
-      setMessage("Escanea un código válido para registrar el ingreso.");
+    const qrUuid = extractQrUuid(value);
+
+    if (!qrUuid) {
+      setMessage("Escanea un QR válido (uuid hex de 32 caracteres).");
       return;
     }
+
     setIsSubmitting(true);
     setMessage(null);
 
-    const timestamp = new Date().toISOString();
-    const newCheckIn: CheckIn = {
-      id: `CHK-${Date.now()}`,
-      memberName: value,
-      date: timestamp,
-      status: "Aceptado",
-    };
-
-    const response = await api.registerCheckIn(newCheckIn);
+    const response = await api.registerCheckIn(qrUuid);
     if (!response.ok) {
       setMessage(response.message ?? "No se pudo registrar el ingreso.");
       setIsSubmitting(false);
       return;
     }
 
+    const timestamp = new Date().toISOString();
+
     setMessage(response.message ?? "Ingreso registrado.");
     setEntries((prev) => [response.data, ...prev]);
     setScannerInput("");
-    setLastScan({ value, time: timestamp });
+    setLastScan({ value: qrUuid, time: timestamp });
     setIsSubmitting(false);
   };
 
-  const simulatedId = useMemo(
-    () => `MBR-${String(Date.now()).slice(-4)}`,
+  const simulatedQrUuid = useMemo(
+    () => "c503fe3c0161486fbe4527b931bb8609",
     []
   );
 
@@ -80,7 +106,7 @@ export default function IngresosQr() {
       <LoadingOverlay isOpen={isLoading} />
       <PageHeader
         title="Ingresos con código QR"
-        description="Registro rápido de entradas con validación de membresía."
+        description="Registro automático de entradas a partir de qr_uuid."
       />
 
       <div className="grid gap-6 lg:grid-cols-[1fr_1fr]">
@@ -91,7 +117,7 @@ export default function IngresosQr() {
             lastScan={lastScan}
             onChange={setScannerInput}
             onSubmit={() => handleSubmit()}
-            onSimulate={() => handleSubmit(simulatedId)}
+            onSimulate={() => handleSubmit(simulatedQrUuid)}
           />
           {message ? (
             <p className="text-sm text-emerald-600">{message}</p>

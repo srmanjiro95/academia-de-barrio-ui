@@ -63,7 +63,7 @@ interface ApiContract {
   createMember: (payload: GymMember) => Promise<ApiResult<GymMember>>;
   refreshMemberQr: (memberId: string) => Promise<ApiResult<GymMember>>;
   listCheckIns: () => Promise<ApiResult<CheckIn[]>>;
-  registerCheckIn: (payload: CheckIn) => Promise<ApiResult<CheckIn>>;
+  registerCheckIn: (qrUuid: string) => Promise<ApiResult<CheckIn>>;
   listRecords: () => Promise<ApiResult<FightRecord[]>>;
   registerRecord: (payload: FightRecord) => Promise<ApiResult<FightRecord>>;
   listSales: () => Promise<ApiResult<Sale[]>>;

@@ -1,10 +1,11 @@
 import type { CheckIn } from "~/types/gym/checkin";
 
-export const toApiCheckIn = (checkIn: CheckIn) => ({
-  member_id: checkIn.memberId ?? "",
-  member_name: checkIn.memberName,
-  date: checkIn.date,
-  status: checkIn.status,
+export interface RegisterCheckInPayload {
+  qr_uuid: string;
+}
+
+export const toApiCheckIn = (qrUuid: string): RegisterCheckInPayload => ({
+  qr_uuid: qrUuid,
 });
 
 export const fromApiCheckIn = (checkIn: any): CheckIn => ({

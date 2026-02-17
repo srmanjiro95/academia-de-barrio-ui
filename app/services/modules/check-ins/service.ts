@@ -12,12 +12,11 @@ export const listCheckIns = async (): Promise<ApiResult<CheckIn[]>> => {
 };
 
 export const registerCheckIn = async (
-  payload: CheckIn
+  qrUuid: string
 ): Promise<ApiResult<CheckIn>> => {
-
   const response = await fetchApi<any>(CHECK_INS_ENDPOINT, {
     method: "POST",
-    body: JSON.stringify(toApiCheckIn(payload)),
+    body: JSON.stringify(toApiCheckIn(qrUuid)),
   });
 
   return response.ok
@@ -26,5 +25,8 @@ export const registerCheckIn = async (
         data: fromApiCheckIn(response.data),
         message: "Ingreso QR registrado.",
       }
-    : ({ ...response, data: payload } as ApiResult<CheckIn>);
+    : ({
+        ...response,
+        data: null as unknown as CheckIn,
+      } as ApiResult<CheckIn>);
 };
