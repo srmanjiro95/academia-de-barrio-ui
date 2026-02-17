@@ -2,9 +2,70 @@ import { useEffect, useMemo, useState } from "react";
 import { Card } from "~/components/common/Card";
 import { PageHeader } from "~/components/common/PageHeader";
 import { LoadingOverlay } from "~/components/common/LoadingOverlay";
+import { MemberCheckInModal } from "~/components/gym/MemberCheckInModal";
 import { QrScannerPanel } from "~/components/gym/QrScannerPanel";
 import { api } from "~/services/api";
-import type { CheckIn } from "~/types/gym/checkin";
+import type { CheckIn, CheckInMemberPreview } from "~/types/gym/checkin";
+
+const QR_UUID_REGEX = /\b([a-f0-9]{32})\b/i;
+
+function extractQrUuid(rawValue: string): string | null {
+  const trimmed = rawValue.trim();
+  if (!trimmed) return null;
+
+  if (QR_UUID_REGEX.test(trimmed)) {
+    const match = trimmed.match(QR_UUID_REGEX);
+    return match?.[1]?.toLowerCase() ?? null;
+  }
+
+  try {
+    const parsedUrl = new URL(trimmed);
+    const candidate =
+      parsedUrl.searchParams.get("qr_uuid") ??
+      parsedUrl.searchParams.get("qr") ??
+      (() => {
+        const parts = parsedUrl.pathname.split("/").filter(Boolean);
+        return parts.length > 0 ? parts[parts.length - 1] : null;
+      })();
+
+    if (candidate && QR_UUID_REGEX.test(candidate)) {
+      return candidate.match(QR_UUID_REGEX)?.[1]?.toLowerCase() ?? null;
+    }
+  } catch {
+    // no-op: input may not be a URL
+  }
+
+  return null;
+}
+
+function buildPreviewFromData(checkIn: CheckIn, members: Awaited<ReturnType<typeof api.listMembers>>["data"], records: Awaited<ReturnType<typeof api.listRecords>>["data"]): CheckInMemberPreview | null {
+  if (!checkIn.memberId) return null;
+
+  const member = members.find((item) => item.id === checkIn.memberId);
+  if (!member) return null;
+
+  const memberRecords = records.filter((record) => record.memberId === checkIn.memberId);
+  const summary = memberRecords.reduce(
+    (acc, record) => ({
+      wins: acc.wins + record.wins,
+      losses: acc.losses + record.losses,
+      draws: acc.draws + record.draws,
+      winsByKo: acc.winsByKo + record.winsByKo,
+      winsByPoints: acc.winsByPoints + record.winsByPoints,
+    }),
+    { wins: 0, losses: 0, draws: 0, winsByKo: 0, winsByPoints: 0 }
+  );
+
+  return {
+    memberId: member.id,
+    fullName: `${member.firstName} ${member.lastName}`.trim(),
+    imageUrl: member.imageUrl,
+    status: member.status,
+    membershipName: member.membership?.name,
+    recordSummary: summary,
+    records: memberRecords,
+  };
+}
 
 const QR_UUID_REGEX = /\b([a-f0-9]{32})\b/i;
 
@@ -46,6 +107,30 @@ export default function IngresosQr() {
   const [lastScan, setLastScan] = useState<{ value: string; time: string } | null>(
     null
   );
+  const [isPreviewOpen, setIsPreviewOpen] = useState(false);
+  const [selectedCheckIn, setSelectedCheckIn] = useState<CheckIn | null>(null);
+  const [selectedPreview, setSelectedPreview] = useState<CheckInMemberPreview | null>(null);
+
+  useEffect(() => {
+    let isMounted = true;
+
+    const loadData = async () => {
+      const response = await api.listCheckIns();
+      if (!isMounted) return;
+      if (response.ok) {
+        setEntries(response.data);
+      } else {
+        setMessage(response.message ?? "No se pudieron cargar los ingresos.");
+      }
+      setIsLoading(false);
+    };
+
+    void loadData();
+
+    return () => {
+      isMounted = false;
+    };
+  }, []);
 
   useEffect(() => {
     let isMounted = true;
@@ -88,11 +173,36 @@ export default function IngresosQr() {
     }
 
     const timestamp = new Date().toISOString();
+    const savedCheckIn = response.data;
 
     setMessage(response.message ?? "Ingreso registrado.");
-    setEntries((prev) => [response.data, ...prev]);
+    setEntries((prev) => [savedCheckIn, ...prev]);
     setScannerInput("");
     setLastScan({ value: qrUuid, time: timestamp });
+
+    let preview = savedCheckIn.memberPreview ?? null;
+
+    if (!preview && savedCheckIn.memberId) {
+      const [membersResponse, recordsResponse] = await Promise.all([
+        api.listMembers(),
+        api.listRecords(),
+      ]);
+
+      if (membersResponse.ok && recordsResponse.ok) {
+        preview = buildPreviewFromData(
+          savedCheckIn,
+          membersResponse.data,
+          recordsResponse.data
+        );
+      }
+    }
+
+    if (preview) {
+      setSelectedCheckIn(savedCheckIn);
+      setSelectedPreview(preview);
+      setIsPreviewOpen(true);
+    }
+
     setIsSubmitting(false);
   };
 
@@ -150,6 +260,18 @@ export default function IngresosQr() {
           </ul>
         </Card>
       </div>
+
+      <MemberCheckInModal
+        isOpen={isPreviewOpen}
+        checkInDate={selectedCheckIn?.date ?? ""}
+        checkInStatus={selectedCheckIn?.status ?? ""}
+        preview={selectedPreview}
+        onClose={() => {
+          setIsPreviewOpen(false);
+          setSelectedCheckIn(null);
+          setSelectedPreview(null);
+        }}
+      />
     </div>
   );
 }
