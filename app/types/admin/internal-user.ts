@@ -14,4 +14,5 @@ export interface InternalUser {
   address: string;
   role: string;
   emergencyContacts: EmergencyContact[];
+  imageUrl?: string;
 }

@@ -11,6 +11,8 @@ export function LoadingOverlay({ isOpen, text = "Cargando" }: LoadingOverlayProp
   const [dots, setDots] = useState("");
 
   useEffect(() => {
+    if (!isOpen) return;
+
     const interval = setInterval(() => {
       setDots((prev) => (prev.length >= 3 ? "" : `${prev}.`));
     }, 350);

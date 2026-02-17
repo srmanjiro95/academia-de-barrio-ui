@@ -46,15 +46,27 @@ export default function InventarioCatalogo() {
     setIsSubmitting(true);
     setMessage(null);
     const formData = new FormData(event.currentTarget);
-    const payload = Object.fromEntries(formData) as Record<string, string>;
+    const imageFile = formData.get("imageFile");
+
+    let imageUrl = editingProduct?.imageUrl ?? "";
+
+    if (imageFile instanceof File && imageFile.size > 0) {
+      const uploadResponse = await api.uploadImage(imageFile, "inventory");
+      if (!uploadResponse.ok) {
+        setMessage(uploadResponse.message ?? "No se pudo subir la imagen del producto.");
+        setIsSubmitting(false);
+        return;
+      }
+      imageUrl = uploadResponse.data.image_url;
+    }
 
     const newProduct: Product = {
       id: editingProduct?.id ?? `PROD-${Date.now()}`,
-      name: payload.name ?? "",
-      units: Number(payload.units ?? 0),
-      price: Number(payload.price ?? 0),
-      description: payload.description ?? "",
-      imageUrl: payload.imageUrl ?? "",
+      name: String(formData.get("name") ?? ""),
+      units: Number(formData.get("units") ?? 0),
+      price: Number(formData.get("price") ?? 0),
+      description: String(formData.get("description") ?? ""),
+      imageUrl,
     };
 
     const response = await api.createProduct(newProduct);
@@ -88,7 +100,7 @@ export default function InventarioCatalogo() {
           <form key={formKey} onSubmit={handleSubmit} className="space-y-4">
             <FileField
               label="Foto del producto"
-              name="imageUrl"
+              name="imageFile"
               accept="image/*"
               helperText="Sube una imagen principal del producto."
             />

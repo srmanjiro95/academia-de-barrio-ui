@@ -51,22 +51,6 @@ export default function PlanesGym() {
     };
   }, []);
 
-  useEffect(() => {
-    let isMounted = true;
-
-    const loadPlans = async () => {
-      const response = await api.listPlans();
-      if (!isMounted || !response.ok || response.data.length === 0) return;
-      setPlans(response.data);
-    };
-
-    void loadPlans();
-
-    return () => {
-      isMounted = false;
-    };
-  }, []);
-
   const selectedPlanMembers = useMemo(() => {
     if (!selectedPlan) return [];
     return planMembers[selectedPlan.id] ?? [];

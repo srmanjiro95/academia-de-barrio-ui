@@ -48,6 +48,19 @@ export default function UsuariosInternos() {
     setMessage(null);
     const formData = new FormData(event.currentTarget);
     const payload = Object.fromEntries(formData) as Record<string, string>;
+    const imageFile = formData.get("imageFile");
+
+    let imageUrl = editingUser?.imageUrl ?? "";
+
+    if (imageFile instanceof File && imageFile.size > 0) {
+      const uploadResponse = await api.uploadImage(imageFile, "internal-users");
+      if (!uploadResponse.ok) {
+        setMessage(uploadResponse.message ?? "No se pudo subir la foto del usuario.");
+        setIsSubmitting(false);
+        return;
+      }
+      imageUrl = uploadResponse.data.image_url;
+    }
 
     const newUser: InternalUser = {
       id: editingUser?.id ?? `IU-${Date.now()}`,
@@ -58,6 +71,7 @@ export default function UsuariosInternos() {
       phone: payload.phone ?? "",
       address: payload.address ?? "",
       role: payload.role ?? "",
+      imageUrl,
       emergencyContacts: [
         {
           name: payload.contactOneName ?? "",
@@ -109,7 +123,7 @@ export default function UsuariosInternos() {
               title="Datos personales"
               description="Información principal del usuario interno."
             >
-              <FileField label="Foto" name="photo" accept="image/*" />
+              <FileField label="Foto" name="imageFile" accept="image/*" />
               <TextField
                 label="Nombre"
                 name="firstName"

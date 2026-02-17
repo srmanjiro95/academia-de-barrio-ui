@@ -28,6 +28,7 @@ export const toApiMember = (member: GymMember) => ({
   status: member.status,
   membership_id: member.membership?.id ?? null,
   membership_name: member.membership?.name ?? null,
+  image_url: member.imageUrl ?? null,
 });
 
 export const fromApiMember = (member: any): GymMember => ({
@@ -64,4 +65,5 @@ export const fromApiMember = (member: any): GymMember => ({
           name: member.membership_name ?? "",
         }
       : null,
+  imageUrl: member.image_url ?? undefined,
 });

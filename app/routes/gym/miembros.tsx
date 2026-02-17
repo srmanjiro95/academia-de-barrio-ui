@@ -87,24 +87,6 @@ export default function MiembrosGym() {
     };
   }, []);
 
-
-
-  useEffect(() => {
-    let isMounted = true;
-
-    const loadMembers = async () => {
-      const response = await api.listMembers();
-      if (!isMounted || !response.ok || response.data.length === 0) return;
-      setMembers(response.data);
-    };
-
-    void loadMembers();
-
-    return () => {
-      isMounted = false;
-    };
-  }, []);
-
   useEffect(() => {
     setBirthDate(editingMember?.birthDate ?? "");
     setMembershipId(editingMember?.membership?.id ?? "none");
@@ -116,6 +98,19 @@ export default function MiembrosGym() {
     setMessage(null);
     const formData = new FormData(event.currentTarget);
     const payload = Object.fromEntries(formData) as Record<string, string>;
+    const imageFile = formData.get("imageFile");
+
+    let imageUrl = editingMember?.imageUrl ?? "";
+
+    if (imageFile instanceof File && imageFile.size > 0) {
+      const uploadResponse = await api.uploadImage(imageFile, "members");
+      if (!uploadResponse.ok) {
+        setMessage(uploadResponse.message ?? "No se pudo subir la foto del miembro.");
+        setIsSubmitting(false);
+        return;
+      }
+      imageUrl = uploadResponse.data.image_url;
+    }
 
     const membershipSelection =
       membershipsCatalog.find((membership) => membership.id === membershipId) ?? null;
@@ -152,6 +147,7 @@ export default function MiembrosGym() {
         : manualMembershipName
         ? { id: `MEM-${Date.now()}`, name: manualMembershipName }
         : null,
+      imageUrl,
     };
 
     const response = await api.createMember(newMember);
@@ -247,7 +243,7 @@ export default function MiembrosGym() {
         <Card>
           <form key={formKey} onSubmit={handleSubmit} className="space-y-6">
             <FormSection title="Datos del miembro">
-              <FileField label="Foto" name="photo" accept="image/*" />
+              <FileField label="Foto" name="imageFile" accept="image/*" />
               <TextField
                 label="Nombre"
                 name="firstName"

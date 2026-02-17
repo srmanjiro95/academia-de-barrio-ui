@@ -35,6 +35,7 @@ export function getApiBaseUrl() {
 function createUrl(path: string, query?: Record<string, string | number>) {
   const baseUrl = getApiBaseUrl();
   if (!baseUrl) return null;
+
   const normalizedPath = path.startsWith("/") ? path : `/${path}`;
   const url = new URL(`${baseUrl}${normalizedPath}`);
 
@@ -45,6 +46,21 @@ function createUrl(path: string, query?: Record<string, string | number>) {
   }
 
   return url.toString();
+}
+
+function buildHeaders(options: RequestInit): HeadersInit {
+  const headers = new Headers(options.headers ?? {});
+  const method = (options.method ?? "GET").toUpperCase();
+
+  const hasBody = options.body !== undefined && options.body !== null;
+  const isFormDataBody = typeof FormData !== "undefined" && options.body instanceof FormData;
+  const shouldSetJsonContentType = hasBody && method !== "GET" && method !== "HEAD";
+
+  if (shouldSetJsonContentType && !isFormDataBody && !headers.has("Content-Type")) {
+    headers.set("Content-Type", "application/json");
+  }
+
+  return headers;
 }
 
 export async function fetchApi<TResponse>(
@@ -66,10 +82,7 @@ export async function fetchApi<TResponse>(
   try {
     const response = await fetch(url, {
       ...options,
-      headers: {
-        "Content-Type": "application/json",
-        ...(options.headers ?? {}),
-      },
+      headers: buildHeaders(options),
     });
 
     if (!response.ok) {

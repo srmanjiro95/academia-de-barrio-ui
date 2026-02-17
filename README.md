@@ -6,29 +6,58 @@ Frontend de la Academia del Barrio construido con React Router + TypeScript.
 
 La capa `api` consume el backend OpenAPI usando una URL base por entorno.
 
+### Configuración recomendada para desarrollo (evita CORS)
+
 1. Crea tu archivo `.env` local (puedes copiar `.env.example`):
 
 ```bash
 cp .env.example .env
 ```
 
-2. Define la URL del backend:
+2. Usa proxy local de Vite:
 
 ```bash
-VITE_API_BASE_URL=http://localhost:8000
+VITE_API_BASE_URL=/api
+VITE_API_PROXY_TARGET=http://localhost:8000
 ```
 
-> También se soporta `API_BASE_URL`, pero en cliente se recomienda `VITE_API_BASE_URL`.
+Con esto, la UI llama a `/api/*` en `localhost:5173` y Vite redirige al backend (`localhost:8000`) sin bloqueo CORS en navegador.
 
-3. Levanta este proyecto normalmente:
+3. Levanta frontend:
 
 ```bash
 npm run dev
 ```
 
-Si la variable no está definida, la UI mostrará un error de configuración al intentar consumir API.
+> También se soporta `VITE_API_BASE_URL=http://localhost:8000`, pero en ese modo dependes de CORS correcto en backend.
 
-### Endpoints esperados por acción
+## Si quieres consumir backend directo (sin proxy)
+
+Debes habilitar CORS en FastAPI para tu origen de frontend (`http://localhost:5173`, y opcionalmente `http://localhost:4173` si usas otro puerto).
+
+Ejemplo:
+
+```py
+from fastapi.middleware.cors import CORSMiddleware
+
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["http://localhost:5173", "http://localhost:4173"],
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
+```
+
+
+## Subida de imágenes (uploads)
+
+La UI ahora envía archivos al endpoint `POST /uploads/image` y usa `image_url` para guardar membresías, inventario, promociones, miembros y usuarios internos.
+
+- Query param `folder` se usa por módulo (`memberships`, `inventory`, `promotions`, `members`, `internal-users`).
+- El campo usado del response es `image_url` (no `relative_path`).
+
+## Estructura de servicios API
 
 - `app/services/api.ts`: punto de entrada agregado con todos los métodos.
 - `app/services/api-core.ts`: cliente reusable (`fetchApi`, configuración base y manejo de errores).
@@ -37,7 +66,11 @@ Si la variable no está definida, la UI mostrará un error de configuración al 
   - `mappers.ts` (payloads/serialización),
   - `service.ts` (funciones por dominio).
 
-> Si en tu backend los paths son distintos, puedes mantener el mismo contrato y crear un router de compatibilidad o ajustar esta tabla en `app/services/gymApi.ts`.
+## Endpoints base usados
+
+- Catálogo: `/catalog/memberships`, `/catalog/inventory`, `/catalog/promotions`, `/catalog/plans`
+- Admin: `/admin/roles`, `/admin/internal-users`, `/admin/personal-records`
+- Gym: `/gym/members`, `/gym/memberships`, `/gym/ingresos-qr`, `/gym/sales`
 
 ## Scripts
 

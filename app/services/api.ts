@@ -10,6 +10,7 @@ import type { Sale } from "~/types/gym/sale";
 import type { MemberMembership } from "~/types/gym/member-membership";
 import type { DevelopmentPlan } from "~/types/gym/plan";
 import type { Promotion } from "~/types/gym/promotion";
+import type { UploadImageResponse } from "~/services/modules/uploads/service";
 import {
   listMemberships,
   createMembership,
@@ -39,6 +40,7 @@ import {
   assignMembership,
 } from "~/services/modules/member-memberships/service";
 import { listPlans, createPlan } from "~/services/modules/plans/service";
+import { uploadImage } from "~/services/modules/uploads/service";
 
 export type { ApiResult } from "~/services/api-core";
 
@@ -65,6 +67,7 @@ interface ApiContract {
   assignMembership: (payload: MemberMembership) => Promise<ApiResult<MemberMembership>>;
   listPlans: () => Promise<ApiResult<DevelopmentPlan[]>>;
   createPlan: (payload: DevelopmentPlan) => Promise<ApiResult<DevelopmentPlan>>;
+  uploadImage: (file: File, folder?: string) => Promise<ApiResult<UploadImageResponse>>;
 }
 
 export const api: ApiContract = {
@@ -90,4 +93,5 @@ export const api: ApiContract = {
   assignMembership,
   listPlans,
   createPlan,
+  uploadImage,
 };

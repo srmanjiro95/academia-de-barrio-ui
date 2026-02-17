@@ -48,18 +48,30 @@ export default function MembresiasCatalogo() {
     setIsSubmitting(true);
     setMessage(null);
     const formData = new FormData(event.currentTarget);
-    const payload = Object.fromEntries(formData) as Record<string, string>;
+    const imageFile = formData.get("imageFile");
+
+    let imageUrl = editingMembership?.imageUrl ?? "";
+
+    if (imageFile instanceof File && imageFile.size > 0) {
+      const uploadResponse = await api.uploadImage(imageFile, "memberships");
+      if (!uploadResponse.ok) {
+        setMessage(uploadResponse.message ?? "No se pudo subir la imagen de la membresía.");
+        setIsSubmitting(false);
+        return;
+      }
+      imageUrl = uploadResponse.data.image_url;
+    }
 
     const newMembership: Membership = {
       id: editingMembership?.id ?? `MEM-${Date.now()}`,
-      name: payload.name ?? "",
-      price: Number(payload.price ?? 0),
-      duration: payload.duration ?? "",
-      includes: (payload.includes ?? "")
+      name: String(formData.get("name") ?? ""),
+      price: Number(formData.get("price") ?? 0),
+      duration: String(formData.get("duration") ?? ""),
+      includes: String(formData.get("includes") ?? "")
         .split("\n")
         .map((item) => item.trim())
         .filter(Boolean),
-      imageUrl: payload.imageUrl ?? "",
+      imageUrl,
     };
 
     const response = await api.createMembership(newMembership);
@@ -95,7 +107,7 @@ export default function MembresiasCatalogo() {
           <form key={formKey} onSubmit={handleSubmit} className="space-y-4">
             <FileField
               label="Imagen de la membresía"
-              name="imageUrl"
+              name="imageFile"
               accept="image/*"
               helperText="Sube el arte principal de la membresía."
             />

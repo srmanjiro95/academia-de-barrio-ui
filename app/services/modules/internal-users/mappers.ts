@@ -10,6 +10,7 @@ export const toApiInternalUser = (user: InternalUser) => ({
   role_id: null,
   role: user.role || null,
   emergency_contacts: user.emergencyContacts,
+  image_url: user.imageUrl ?? null,
 });
 
 export const fromApiInternalUser = (user: any): InternalUser => ({
@@ -22,4 +23,5 @@ export const fromApiInternalUser = (user: any): InternalUser => ({
   address: user.address,
   role: user.role ?? "",
   emergencyContacts: user.emergency_contacts ?? [],
+  imageUrl: user.image_url ?? undefined,
 });
