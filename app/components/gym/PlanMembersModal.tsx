@@ -69,7 +69,7 @@ export function PlanMembersModal({
                     {member.firstName} {member.lastName}
                   </p>
                   <p className="text-xs text-zinc-500 dark:text-zinc-400">
-                    {member.membership} · {member.status}
+                    {member.membership?.name ?? "Sin membresía"} · {member.status}
                   </p>
                 </button>
               );

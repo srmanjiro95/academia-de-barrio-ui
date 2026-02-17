@@ -46,9 +46,14 @@ export function AddPlanDrawer({
 
   const handleCreatePlan = () => {
     if (!name || !focus || !description || !coach || !sessionsPerWeek) return;
+    const primaryMember = members.find((member) => member.id === selectedMemberIds[0]);
+
     const newPlan: DevelopmentPlan = {
       id: initialPlan?.id ?? `PLAN-${Date.now()}`,
-      memberName: selectedMemberIds,
+      memberId: selectedMemberIds[0],
+      memberName: primaryMember
+        ? `${primaryMember.firstName} ${primaryMember.lastName}`
+        : "Sin asignar",
       name,
       focus,
       description,
@@ -181,7 +186,7 @@ export function AddPlanDrawer({
                         {member.firstName} {member.lastName}
                       </p>
                       <p className="text-xs text-zinc-500 dark:text-zinc-400">
-                        {member.membership} · {member.status}
+                        {member.membership?.name ?? "Sin membresía"} · {member.status}
                       </p>
                     </div>
                   </Card>
