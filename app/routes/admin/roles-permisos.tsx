@@ -64,6 +64,28 @@ export default function RolesPermisos() {
       );
   }, [permissionCatalog, roleList]);
 
+  useEffect(() => {
+    let isMounted = true;
+
+    const loadData = async () => {
+      const response = await api.listRoles();
+      if (!isMounted) return;
+      if (response.ok) {
+        setRoleList(response.data);
+      } else {
+        setMessage(response.message ?? "No se pudieron cargar los roles.");
+      }
+      setIsLoading(false);
+    };
+
+    void loadData();
+
+    return () => {
+      isMounted = false;
+    };
+  }, []);
+
+
   const formKey = editingRole?.id ?? "new";
 
   const togglePermission = (permissionId: string) => {

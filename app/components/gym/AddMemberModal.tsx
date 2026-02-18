@@ -149,15 +149,6 @@ export function AddMemberModal({
             <TextField label="Apellido paterno" name="lastName" required />
             <TextField label="Apellido materno" name="middleName" />
             <BirthDateField value={birthDate} onChange={setBirthDate} />
-            <SelectField
-              label="Género"
-              name="gender"
-              options={[
-                { label: "Femenino", value: "Femenino" },
-                { label: "Masculino", value: "Masculino" },
-                { label: "Otro", value: "Otro" },
-              ]}
-            />
             <TextField label="Celular" name="phone" required />
             <TextField label="Correo" name="email" type="email" required />
             <SelectField
@@ -169,7 +160,6 @@ export function AddMemberModal({
                 { label: "Baja", value: "Baja" },
               ]}
             />
-            <TextField label="Membresía asignada" name="membership" placeholder="Sin asignar" />
             <SelectField
               label="Catálogo de membresías"
               name="membershipId"
