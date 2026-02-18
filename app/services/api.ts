@@ -2,7 +2,7 @@ import type { ApiResult } from "~/services/api-core";
 import type { Membership } from "~/types/catalog/membership";
 import type { Product } from "~/types/catalog/product";
 import type { InternalUser } from "~/types/admin/internal-user";
-import type { Role } from "~/types/admin/role";
+import type { Permissions, Role } from "~/types/admin/role";
 import type { GymMember } from "~/types/gym/member";
 import type { CheckIn } from "~/types/gym/checkin";
 import type { FightRecord } from "~/types/gym/record";
@@ -28,6 +28,10 @@ import {
 } from "~/services/modules/promotions/service";
 import { listRoles, createRole, updateRole } from "~/services/modules/roles/service";
 import {
+  listPermissions,
+  createPermission,
+} from "~/services/modules/permissions/service";
+import {
   listInternalUsers,
   createInternalUser,
   updateInternalUser,
@@ -42,11 +46,18 @@ import {
   listCheckIns,
   registerCheckIn,
 } from "~/services/modules/check-ins/service";
+import {
+  listRecords,
+  registerRecord,
+} from "~/services/modules/records/service";
+import { listSales, registerSale } from "~/services/modules/sales/service";
+import {
+  listMemberMemberships,
+  assignMembership,
+  updateMemberMembership,
+} from "~/services/modules/member-memberships/service";
 import { listPlans, createPlan, updatePlan } from "~/services/modules/plans/service";
 import { uploadImage } from "~/services/modules/uploads/service";
-import { listSales, registerSale } from "./modules/sales/service";
-import { assignMembership, listMemberMemberships, updateMemberMembership } from "./modules/member-memberships/service";
-import { listRecords, registerRecord } from "./modules/records/service";
 
 export type { ApiResult } from "~/services/api-core";
 
@@ -61,8 +72,10 @@ interface ApiContract {
   createPromotion: (payload: Promotion) => Promise<ApiResult<Promotion>>;
   updatePromotion: (payload: Promotion) => Promise<ApiResult<Promotion>>;
   listRoles: () => Promise<ApiResult<Role[]>>;
+  listPermissions: () => Promise<ApiResult<Permissions[]>>;
   createRole: (payload: Role) => Promise<ApiResult<Role>>;
   updateRole: (payload: Role) => Promise<ApiResult<Role>>;
+  createPermission: (payload: Permissions) => Promise<ApiResult<Permissions>>;
   listInternalUsers: () => Promise<ApiResult<InternalUser[]>>;
   createInternalUser: (payload: InternalUser) => Promise<ApiResult<InternalUser>>;
   updateInternalUser: (payload: InternalUser) => Promise<ApiResult<InternalUser>>;
@@ -96,8 +109,10 @@ export const api: ApiContract = {
   createPromotion,
   updatePromotion,
   listRoles,
+  listPermissions,
   createRole,
   updateRole,
+  createPermission,
   listInternalUsers,
   createInternalUser,
   updateInternalUser,

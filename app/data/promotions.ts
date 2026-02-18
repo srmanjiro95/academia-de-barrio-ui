@@ -17,7 +17,7 @@ export const promotions: Promotion[] = [
   {
     id: "PROMO-002",
     title: "20% off anualidad",
-    type: "Descuento",
+    type: "Descuento a producto",
     discountType: "Porcentaje",
     amount: 20,
     description: "Descuento del 20% en anualidades seleccionadas.",
@@ -25,13 +25,14 @@ export const promotions: Promotion[] = [
     endDate: "2024-08-31",
     code: "ANUAL-20",
     status: "Activo",
+    scope: "Toda la tienda",
     imageUrl:
       "https://images.unsplash.com/photo-1549576490-b0b4831ef60a?auto=format&fit=crop&w=500&q=80",
   },
   {
     id: "PROMO-003",
     title: "$200 MXN de descuento",
-    type: "Descuento",
+    type: "Membresía",
     discountType: "Monto fijo",
     amount: 200,
     description: "Aplicable a membresías trimestrales.",
@@ -39,6 +40,7 @@ export const promotions: Promotion[] = [
     endDate: "2024-12-31",
     code: "DESC-200",
     status: "Inactivo",
+    scope: "Membresías",
     imageUrl:
       "https://images.unsplash.com/photo-1549576490-b0b4831ef60a?auto=format&fit=crop&w=500&q=80",
   },

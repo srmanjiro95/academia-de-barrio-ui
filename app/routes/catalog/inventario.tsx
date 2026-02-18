@@ -8,7 +8,7 @@ import { FileField } from "~/components/forms/FileField";
 import { TextAreaField } from "~/components/forms/TextAreaField";
 import { TextField } from "~/components/forms/TextField";
 import { api } from "~/services/api";
-import type { Product } from "~/types/catalog/product";
+import { PRODUCT_CATEGORIES, type Product } from "~/types/catalog/product";
 
 export default function InventarioCatalogo() {
   const [message, setMessage] = useState<string | null>(null);
@@ -68,6 +68,7 @@ export default function InventarioCatalogo() {
       price: Number(formData.get("price") ?? 0),
       description: String(formData.get("description") ?? ""),
       imageUrl,
+      category: (formData.get("category") as Product["category"]) ?? "Otros",
     };
 
     const isEditing = Boolean(editingProduct);
@@ -142,6 +143,22 @@ export default function InventarioCatalogo() {
               className="md:col-span-2"
               defaultValue={editingProduct?.description}
             />
+            <div className="space-y-2">
+              <label className="text-sm font-medium text-zinc-700 dark:text-zinc-200">
+                Categoría
+              </label>
+              <select
+                name="category"
+                defaultValue={editingProduct?.category ?? "Otros"}
+                className="w-full rounded-xl border border-zinc-200 bg-white px-3 py-2 text-sm text-zinc-900 shadow-sm focus:border-zinc-400 focus:outline-none dark:border-zinc-700 dark:bg-zinc-950 dark:text-zinc-100"
+              >
+                {PRODUCT_CATEGORIES.map((category) => (
+                  <option key={category} value={category}>
+                    {category}
+                  </option>
+                ))}
+              </select>
+            </div>
             <button
               type="submit"
               className="rounded-xl bg-emerald-600 px-4 py-2 text-sm font-semibold text-white"
@@ -197,7 +214,7 @@ export default function InventarioCatalogo() {
                     </span>
                   </div>
                   <p className="text-xs text-zinc-500 dark:text-zinc-400">
-                    {product.units} unidades disponibles
+                    {product.units} unidades disponibles · {product.category ?? "Sin categoría"}
                   </p>
                   <p className="text-xs text-zinc-500 dark:text-zinc-400">
                     {product.description}

@@ -6,6 +6,7 @@ export const toApiProduct = (product: Product) => ({
   price: product.price,
   description: product.description,
   image_url: product.imageUrl ?? "",
+  category: product.category ?? null,
 });
 
 export const fromApiProduct = (product: any): Product => ({
@@ -15,4 +16,5 @@ export const fromApiProduct = (product: any): Product => ({
   price: product.price,
   description: product.description,
   imageUrl: product.image_url,
+  category: product.category ?? undefined,
 });

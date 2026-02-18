@@ -12,6 +12,7 @@ import { PageHeader } from "~/components/common/PageHeader";
 import { LoadingOverlay } from "~/components/common/LoadingOverlay";
 import { api } from "~/services/api";
 import type { Membership } from "~/types/catalog/membership";
+import type { Product } from "~/types/catalog/product";
 import type { GymMember } from "~/types/gym/member";
 import type { MemberMembership } from "~/types/gym/member-membership";
 import type { Promotion } from "~/types/gym/promotion";
@@ -38,6 +39,7 @@ export default function MembresiasGym() {
   const [promotions, setPromotions] =
     useState<Promotion[]>([]);
   const [membershipsCatalog, setMembershipsCatalog] = useState<Membership[]>([]);
+  const [productsCatalog, setProductsCatalog] = useState<Product[]>([]);
   const [promoCode, setPromoCode] = useState("");
   const [selectedPromotionId, setSelectedPromotionId] = useState<string | null>(
     null
@@ -51,11 +53,12 @@ export default function MembresiasGym() {
     let isMounted = true;
 
     const loadData = async () => {
-      const [membersResponse, assignmentsResponse, promotionsResponse, membershipsResponse] = await Promise.all([
+      const [membersResponse, assignmentsResponse, promotionsResponse, membershipsResponse, productsResponse] = await Promise.all([
         api.listMembers(),
         api.listMemberMemberships(),
         api.listPromotions(),
         api.listMemberships(),
+        api.listProducts(),
       ]);
 
       if (!isMounted) return;
@@ -76,6 +79,10 @@ export default function MembresiasGym() {
 
       if (membershipsResponse.ok) {
         setMembershipsCatalog(membershipsResponse.data);
+      }
+
+      if (productsResponse.ok) {
+        setProductsCatalog(productsResponse.data);
       }
 
       setIsLoading(false);
@@ -418,6 +425,8 @@ export default function MembresiasGym() {
 
       {isPromoFormOpen ? (
         <PromotionFormDrawer
+          products={productsCatalog}
+          memberships={membershipsCatalog}
           onClose={() => setIsPromoFormOpen(false)}
           onCreate={(promotion) => {
             void api.createPromotion(promotion).then((response) => {
