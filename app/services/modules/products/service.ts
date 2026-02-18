@@ -1,6 +1,6 @@
 import type { ApiResult } from "~/services/api-core";
 import { fetchApi } from "~/services/api-core";
-import { PRODUCTS_ENDPOINT } from "./constants";
+import { PRODUCTS_ENDPOINT, buildProductEndpoint } from "./constants";
 import { fromApiProduct, toApiProduct } from "./mappers";
 import type { Product } from "~/types/catalog/product";
 
@@ -15,8 +15,20 @@ export const createProduct = async (
   payload: Product
 ): Promise<ApiResult<Product>> => {
 
-  const response = await fetchApi<any>(PRODUCTS_ENDPOINT, {
-    method: "POST",
+  return response.ok
+    ? {
+        ok: true,
+        data: fromApiProduct(response.data),
+        message: "Producto creado.",
+      }
+    : ({ ...response, data: payload } as ApiResult<Product>);
+};
+
+export const updateProduct = async (
+  payload: Product
+): Promise<ApiResult<Product>> => {
+  const response = await fetchApi<any>(buildProductEndpoint(payload.id), {
+    method: "PUT",
     body: JSON.stringify(toApiProduct(payload)),
   });
 
@@ -24,7 +36,7 @@ export const createProduct = async (
     ? {
         ok: true,
         data: fromApiProduct(response.data),
-        message: "Producto creado.",
+        message: "Producto actualizado.",
       }
     : ({ ...response, data: payload } as ApiResult<Product>);
 };

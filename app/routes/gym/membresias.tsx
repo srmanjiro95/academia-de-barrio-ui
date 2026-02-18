@@ -124,7 +124,9 @@ export default function MembresiasGym() {
       status: "Vigente",
     };
 
-    const response = await api.assignMembership(newAssignment);
+    const response = editingAssignment
+      ? await api.updateMemberMembership(newAssignment)
+      : await api.assignMembership(newAssignment);
     if (!response.ok) {
       setMessage(response.message ?? "No se pudo asignar la membresía.");
       setIsSubmitting(false);

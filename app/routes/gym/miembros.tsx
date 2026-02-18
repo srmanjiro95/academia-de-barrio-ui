@@ -152,15 +152,17 @@ export default function MiembrosGym() {
       imageUrl,
     };
 
-    const response = await api.createMember(newMember);
+    const isEditing = Boolean(editingMember);
+    const response = isEditing
+      ? await api.updateMember(newMember)
+      : await api.createMember(newMember);
     if (!response.ok) {
       setMessage(response.message ?? "No se pudo registrar el miembro.");
       setIsSubmitting(false);
       return;
     }
 
-    setMessage(response.message ?? "Miembro registrado.");
-    const isEditing = Boolean(editingMember);
+    setMessage(response.message ?? (isEditing ? "Miembro actualizado." : "Miembro registrado."));
 
     setMembers((prev) =>
       isEditing

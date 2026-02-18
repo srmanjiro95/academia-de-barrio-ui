@@ -75,22 +75,24 @@ export default function MembresiasCatalogo() {
       imageUrl,
     };
 
-    const response = await api.createMembership(newMembership);
+    const isEditing = Boolean(editingMembership);
+    const response = isEditing
+      ? await api.updateMembership(newMembership)
+      : await api.createMembership(newMembership);
     if (!response.ok) {
       setMessage(response.message ?? "No se pudo crear la membresía.");
       setIsSubmitting(false);
       return;
     }
 
-    setMessage(response.message ?? "Membresía creada.");
-    const isEditing = Boolean(editingMembership);
+    setMessage(response.message ?? (isEditing ? "Membresía actualizada." : "Membresía creada."));
 
     setMembershipList((prev) =>
       isEditing
         ? prev.map((item) =>
-            item.id === editingMembership?.id ? newMembership : item
+            item.id === editingMembership?.id ? response.data : item
           )
-        : [newMembership, ...prev]
+        : [response.data, ...prev]
     );
     setEditingMembership(null);
     if (!isEditing) {

@@ -73,7 +73,9 @@ export default function PlanesGym() {
         : plan.memberName,
     };
 
-    const response = await api.createPlan(planPayload);
+    const response = editingPlan
+      ? await api.updatePlan(planPayload)
+      : await api.createPlan(planPayload);
     if (!response.ok) {
       setMessage(response.message ?? "No se pudo guardar el plan.");
       return;

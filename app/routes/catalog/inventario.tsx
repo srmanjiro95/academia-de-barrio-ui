@@ -70,20 +70,22 @@ export default function InventarioCatalogo() {
       imageUrl,
     };
 
-    const response = await api.createProduct(newProduct);
+    const isEditing = Boolean(editingProduct);
+    const response = isEditing
+      ? await api.updateProduct(newProduct)
+      : await api.createProduct(newProduct);
     if (!response.ok) {
       setMessage(response.message ?? "No se pudo guardar el producto.");
       setIsSubmitting(false);
       return;
     }
 
-    setMessage(response.message ?? "Producto agregado.");
-    const isEditing = Boolean(editingProduct);
+    setMessage(response.message ?? (isEditing ? "Producto actualizado." : "Producto agregado."));
 
     setProductList((prev) =>
       isEditing
-        ? prev.map((item) => (item.id === editingProduct?.id ? newProduct : item))
-        : [newProduct, ...prev]
+        ? prev.map((item) => (item.id === editingProduct?.id ? response.data : item))
+        : [response.data, ...prev]
     );
     setEditingProduct(null);
     if (!isEditing) {

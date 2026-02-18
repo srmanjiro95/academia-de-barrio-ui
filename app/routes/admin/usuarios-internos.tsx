@@ -87,20 +87,22 @@ export default function UsuariosInternos() {
       ],
     };
 
-    const response = await api.createInternalUser(newUser);
+    const isEditing = Boolean(editingUser);
+    const response = isEditing
+      ? await api.updateInternalUser(newUser)
+      : await api.createInternalUser(newUser);
     if (!response.ok) {
       setMessage(response.message ?? "No se pudo registrar el usuario.");
       setIsSubmitting(false);
       return;
     }
 
-    setMessage(response.message ?? "Usuario registrado.");
-    const isEditing = Boolean(editingUser);
+    setMessage(response.message ?? (isEditing ? "Usuario actualizado." : "Usuario registrado."));
 
     setUsers((prev) =>
       isEditing
-        ? prev.map((user) => (user.id === editingUser?.id ? newUser : user))
-        : [newUser, ...prev]
+        ? prev.map((user) => (user.id === editingUser?.id ? response.data : user))
+        : [response.data, ...prev]
     );
     setEditingUser(null);
     if (!isEditing) {
