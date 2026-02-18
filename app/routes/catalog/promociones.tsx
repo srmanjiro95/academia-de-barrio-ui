@@ -38,7 +38,9 @@ export default function PromocionesCatalogo() {
   }, []);
 
   const handleUpsertPromotion = async (promotion: Promotion) => {
-    const response = await api.createPromotion(promotion);
+    const response = editingPromotion
+      ? await api.updatePromotion(promotion)
+      : await api.createPromotion(promotion);
     if (!response.ok) {
       setMessage(response.message ?? "No se pudo guardar la promoción.");
       return;

@@ -65,6 +65,13 @@ function createUrl(path: string, query?: Record<string, string | number>) {
   return url.toString();
 }
 
+
+const inFlightGetRequests = new Map<string, Promise<ApiResult<unknown>>>();
+
+function isGetRequest(options: RequestInit) {
+  return (options.method ?? "GET").toUpperCase() === "GET";
+}
+
 function buildHeaders(options: RequestInit): HeadersInit {
   const headers = new Headers(options.headers ?? {});
   const method = (options.method ?? "GET").toUpperCase();
@@ -96,35 +103,54 @@ export async function fetchApi<TResponse>(
     };
   }
 
-  try {
-    const response = await fetch(url, {
-      ...options,
-      headers: buildHeaders(options),
-    });
+  const executeRequest = async () => {
+    try {
+      const response = await fetch(url, {
+        ...options,
+        headers: buildHeaders(options),
+      });
 
-    if (!response.ok) {
-      const details = await response.text();
+      if (!response.ok) {
+        const details = await response.text();
+        return {
+          ok: false,
+          data: null as TResponse,
+          message: `Error ${response.status}: ${details || response.statusText}`,
+        };
+      }
+
+      const body = (await response.json().catch(() => null)) as TResponse;
+
+      return {
+        ok: true,
+        data: body,
+      };
+    } catch (error) {
       return {
         ok: false,
         data: null as TResponse,
-        message: `Error ${response.status}: ${details || response.statusText}`,
+        message:
+          error instanceof Error
+            ? `No se pudo conectar con backend: ${error.message}`
+            : "No se pudo conectar con backend.",
       };
     }
+  };
 
-    const body = (await response.json().catch(() => null)) as TResponse;
-
-    return {
-      ok: true,
-      data: body,
-    };
-  } catch (error) {
-    return {
-      ok: false,
-      data: null as TResponse,
-      message:
-        error instanceof Error
-          ? `No se pudo conectar con backend: ${error.message}`
-          : "No se pudo conectar con backend.",
-    };
+  if (!isGetRequest(options)) {
+    return executeRequest();
   }
+
+  const requestKey = url;
+  const existingRequest = inFlightGetRequests.get(requestKey);
+  if (existingRequest) {
+    return existingRequest as Promise<ApiResult<TResponse>>;
+  }
+
+  const requestPromise = executeRequest().finally(() => {
+    inFlightGetRequests.delete(requestKey);
+  });
+
+  inFlightGetRequests.set(requestKey, requestPromise as Promise<ApiResult<unknown>>);
+  return requestPromise;
 }

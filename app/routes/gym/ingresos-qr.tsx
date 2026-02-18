@@ -101,27 +101,6 @@ export default function IngresosQr() {
     };
   }, []);
 
-  useEffect(() => {
-    let isMounted = true;
-
-    const loadData = async () => {
-      const response = await api.listCheckIns();
-      if (!isMounted) return;
-      if (response.ok) {
-        setEntries(response.data);
-      } else {
-        setMessage(response.message ?? "No se pudieron cargar los ingresos.");
-      }
-      setIsLoading(false);
-    };
-
-    void loadData();
-
-    return () => {
-      isMounted = false;
-    };
-  }, []);
-
   const handleSubmit = async (scanValue?: string) => {
     const value = (scanValue ?? scannerInput).trim();
     const qrUuid = extractQrUuid(value);

@@ -56,18 +56,21 @@ export default function RolesPermisos() {
         .map((permission) => ({ id: permission, name: permission })),
     };
 
-    const response = await api.createRole(newRole);
+    const isEditing = Boolean(editingRole);
+    const response = isEditing
+      ? await api.updateRole(newRole)
+      : await api.createRole(newRole);
     if (!response.ok) {
       setMessage(response.message ?? "No se pudo crear el rol.");
       setIsSubmitting(false);
       return;
     }
 
-    setMessage(response.message ?? "Rol creado.");
+    setMessage(response.message ?? (isEditing ? "Rol actualizado." : "Rol creado."));
     setRoleList((prev) =>
-      editingRole
-        ? prev.map((role) => (role.id === editingRole.id ? newRole : role))
-        : [newRole, ...prev]
+      isEditing
+        ? prev.map((role) => (role.id === editingRole?.id ? response.data : role))
+        : [response.data, ...prev]
     );
     setEditingRole(null);
     setIsSubmitting(false);
