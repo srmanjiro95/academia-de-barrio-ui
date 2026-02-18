@@ -14,6 +14,10 @@ export const listProducts = async (): Promise<ApiResult<Product[]>> => {
 export const createProduct = async (
   payload: Product
 ): Promise<ApiResult<Product>> => {
+  const response = await fetchApi<any>(PRODUCTS_ENDPOINT, {
+    method: "POST",
+    body: JSON.stringify(toApiProduct(payload)),
+  });
 
   return response.ok
     ? {

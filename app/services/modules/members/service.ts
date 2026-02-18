@@ -18,6 +18,10 @@ export const listMembers = async (): Promise<ApiResult<GymMember[]>> => {
 export const createMember = async (
   payload: GymMember
 ): Promise<ApiResult<GymMember>> => {
+  const response = await fetchApi<any>(MEMBERS_ENDPOINT, {
+    method: "POST",
+    body: JSON.stringify(toApiMember(payload)),
+  });
 
   return response.ok
     ? {

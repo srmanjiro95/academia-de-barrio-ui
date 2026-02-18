@@ -14,6 +14,10 @@ export const listMemberships = async (): Promise<ApiResult<Membership[]>> => {
 export const createMembership = async (
   payload: Membership
 ): Promise<ApiResult<Membership>> => {
+  const response = await fetchApi<any>(MEMBERSHIPS_ENDPOINT, {
+    method: "POST",
+    body: JSON.stringify(toApiMembership(payload)),
+  });
 
   return response.ok
     ? {

@@ -42,15 +42,11 @@ import {
   listCheckIns,
   registerCheckIn,
 } from "~/services/modules/check-ins/service";
-import {
-  listRecords,
-  registerRecord,
-import {
-  assignMembership,
-  updateMemberMembership,
-} from "~/services/modules/member-memberships/service";
 import { listPlans, createPlan, updatePlan } from "~/services/modules/plans/service";
 import { uploadImage } from "~/services/modules/uploads/service";
+import { listSales, registerSale } from "./modules/sales/service";
+import { assignMembership, listMemberMemberships, updateMemberMembership } from "./modules/member-memberships/service";
+import { listRecords, registerRecord } from "./modules/records/service";
 
 export type { ApiResult } from "~/services/api-core";
 

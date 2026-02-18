@@ -14,6 +14,10 @@ export const listRoles = async (): Promise<ApiResult<Role[]>> => {
 export const createRole = async (
   payload: Role
 ): Promise<ApiResult<Role>> => {
+  const response = await fetchApi<any>(ROLES_ENDPOINT, {
+    method: "POST",
+    body: JSON.stringify(toApiRole(payload)),
+  });
 
   return response.ok
     ? {
