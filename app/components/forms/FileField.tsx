@@ -7,6 +7,7 @@ interface FileFieldProps {
   required?: boolean;
   className?: string;
   helperText?: string;
+  onChange?: (file: File | null) => void;
 }
 
 export function FileField({
@@ -16,6 +17,7 @@ export function FileField({
   required,
   className = "",
   helperText = "PNG, JPG o WebP (máx. 4MB).",
+  onChange,
 }: FileFieldProps) {
   const inputId = useId();
   const [fileName, setFileName] = useState("Sin archivo seleccionado");
@@ -32,9 +34,11 @@ export function FileField({
           type="file"
           accept={accept}
           required={required}
-          onChange={(event) =>
-            setFileName(event.target.files?.[0]?.name ?? "Sin archivo seleccionado")
-          }
+          onChange={(event) => {
+            const selectedFile = event.target.files?.[0] ?? null;
+            setFileName(selectedFile?.name ?? "Sin archivo seleccionado");
+            onChange?.(selectedFile);
+          }}
           className="sr-only"
         />
         <label
@@ -44,9 +48,7 @@ export function FileField({
           Subir archivo
         </label>
         <div className="flex-1">
-          <p className="text-sm font-medium text-zinc-700 dark:text-zinc-200">
-            {fileName}
-          </p>
+          <p className="text-sm font-medium text-zinc-700 dark:text-zinc-200">{fileName}</p>
           <p className="text-xs text-zinc-400">{helperText}</p>
         </div>
       </div>

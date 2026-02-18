@@ -1,6 +1,12 @@
-export type PromotionType = "Inscripción" | "Descuento";
+export type PromotionType = "Inscripción" | "Descuento a producto" | "Membresía";
 export type PromotionDiscountType = "Porcentaje" | "Monto fijo";
 export type PromotionStatus = "Activo" | "Inactivo";
+export type PromotionScope =
+  | "Inscripción"
+  | "Toda la tienda"
+  | "Categoría"
+  | "Productos específicos"
+  | "Membresías";
 
 export interface Promotion {
   id: string;
@@ -14,4 +20,8 @@ export interface Promotion {
   code: string;
   status: PromotionStatus;
   imageUrl: string;
+  scope?: PromotionScope;
+  category?: string;
+  productIds?: string[];
+  membershipIds?: string[];
 }

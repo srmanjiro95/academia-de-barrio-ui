@@ -32,7 +32,7 @@ export function QrScannerPanel({
             Escaneo de QR
           </h3>
           <p className="text-sm text-zinc-500 dark:text-zinc-400">
-            Conecta el lector USB y escanea el código del miembro.
+            Conecta el lector USB y escanea el qr_uuid del miembro.
           </p>
         </div>
         <Badge variant="success">Escáner listo</Badge>
@@ -51,11 +51,11 @@ export function QrScannerPanel({
             autoFocus
             value={value}
             onChange={(event) => onChange(event.target.value)}
-            placeholder="Escanea el QR o escribe el ID"
+            placeholder="Escanea el QR o pega el qr_uuid"
             className="w-full rounded-xl border border-zinc-200 bg-white px-3 py-3 text-base text-zinc-900 shadow-sm focus:border-zinc-400 focus:outline-none dark:border-zinc-700 dark:bg-zinc-950 dark:text-zinc-100"
           />
           <p className="text-xs text-zinc-500 dark:text-zinc-400">
-            Los lectores tipo POS envían el valor y presionan Enter automáticamente.
+            El lector enviará el valor del QR y presionará Enter automáticamente.
           </p>
           <p className="text-xs text-zinc-500 dark:text-zinc-400">
             Compatible con lectores USB tipo teclado (HID). Si tu lector requiere
