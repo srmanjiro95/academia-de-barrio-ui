@@ -67,37 +67,6 @@ function buildPreviewFromData(checkIn: CheckIn, members: Awaited<ReturnType<type
   };
 }
 
-const QR_UUID_REGEX = /\b([a-f0-9]{32})\b/i;
-
-function extractQrUuid(rawValue: string): string | null {
-  const trimmed = rawValue.trim();
-  if (!trimmed) return null;
-
-  if (QR_UUID_REGEX.test(trimmed)) {
-    const match = trimmed.match(QR_UUID_REGEX);
-    return match?.[1]?.toLowerCase() ?? null;
-  }
-
-  try {
-    const parsedUrl = new URL(trimmed);
-    const candidate =
-      parsedUrl.searchParams.get("qr_uuid") ??
-      parsedUrl.searchParams.get("qr") ??
-      (() => {
-        const parts = parsedUrl.pathname.split("/").filter(Boolean);
-        return parts.length > 0 ? parts[parts.length - 1] : null;
-      })();
-
-    if (candidate && QR_UUID_REGEX.test(candidate)) {
-      return candidate.match(QR_UUID_REGEX)?.[1]?.toLowerCase() ?? null;
-    }
-  } catch {
-    // no-op: input may not be a URL
-  }
-
-  return null;
-}
-
 export default function IngresosQr() {
   const [message, setMessage] = useState<string | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
