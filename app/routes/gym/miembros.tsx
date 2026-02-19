@@ -291,15 +291,7 @@ export default function MiembrosGym() {
                 defaultValue={editingMember?.middleName}
               />
               <BirthDateField value={birthDate} onChange={setBirthDate} />
-              <SelectField
-                label="Género"
-                name="gender"
-                options={[
-                  { label: "Femenino", value: "Femenino" },
-                  { label: "Masculino", value: "Masculino" },
-                  { label: "Otro", value: "Otro" },
-                ]}
-              />
+
               <TextField
                 label="Celular"
                 name="phone"
@@ -323,12 +315,6 @@ export default function MiembrosGym() {
                   { label: "Suspendido", value: "Suspendido" },
                   { label: "Baja", value: "Baja" },
                 ]}
-              />
-              <TextField
-                label="Membresía asignada"
-                name="membership"
-                placeholder="Sin asignar"
-                defaultValue={editingMember?.membership?.name}
               />
               <SelectField
                 label="Catálogo de membresías"
