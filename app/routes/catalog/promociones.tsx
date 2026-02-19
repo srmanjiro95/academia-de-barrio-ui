@@ -75,51 +75,6 @@ export default function PromocionesCatalogo() {
     setIsFormOpen(false);
   };
 
-  useEffect(() => {
-    let isMounted = true;
-
-    const loadData = async () => {
-      const response = await api.listPromotions();
-      if (!isMounted) return;
-      if (response.ok) {
-        setPromotions(response.data);
-      } else {
-        setMessage(response.message ?? "No se pudieron cargar las promociones.");
-      }
-      setIsLoading(false);
-    };
-
-    void loadData();
-
-    return () => {
-      isMounted = false;
-    };
-  }, []);
-
-  const handleUpsertPromotion = async (promotion: Promotion) => {
-    const response = editingPromotion
-      ? await api.updatePromotion(promotion)
-      : await api.createPromotion(promotion);
-    if (!response.ok) {
-      setMessage(response.message ?? "No se pudo guardar la promoción.");
-      return;
-    }
-
-    setMessage(response.message ?? "Promoción guardada.");
-    const savedPromotion = response.data;
-
-    if (editingPromotion) {
-      setPromotions((prev) =>
-        prev.map((item) => (item.id === editingPromotion.id ? savedPromotion : item))
-      );
-      setEditingPromotion(null);
-      return;
-    }
-
-    setPromotions((prev) => [savedPromotion, ...prev]);
-    setIsFormOpen(false);
-  };
-
   return (
     <div className="space-y-8">
       <LoadingOverlay isOpen={isLoading} />

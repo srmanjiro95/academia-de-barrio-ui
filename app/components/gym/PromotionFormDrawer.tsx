@@ -77,9 +77,7 @@ export function PromotionFormDrawer({
 
   const canChooseScope = type === "Descuento a producto";
   const showCategoryInput = canChooseScope && scope === "Categoría";
-  const showProductSelection =
-    (canChooseScope && scope === "Productos específicos") || type === "Inscripción";
-  const isSingleProductSelection = type === "Inscripción";
+  const showProductSelection = canChooseScope && scope === "Productos específicos";
   const showMembershipSelection = type === "Membresía";
 
   const previewPromotion = useMemo<Promotion>(
@@ -104,11 +102,7 @@ export function PromotionFormDrawer({
           ? "Membresías"
           : scope,
       category: showCategoryInput ? category : undefined,
-      productIds: showProductSelection
-        ? isSingleProductSelection
-          ? selectedProductIds.slice(0, 1)
-          : selectedProductIds
-        : [],
+      productIds: showProductSelection ? selectedProductIds : [],
       membershipIds: showMembershipSelection ? selectedMembershipIds : [],
     }),
     [
@@ -119,7 +113,6 @@ export function PromotionFormDrawer({
       discountType,
       endDate,
       imageUrl,
-      isSingleProductSelection,
       scope,
       selectedMembershipIds,
       selectedProductIds,
@@ -302,15 +295,13 @@ export function PromotionFormDrawer({
 
           {showProductSelection ? (
             <div className="space-y-2 text-sm text-zinc-700 dark:text-zinc-200">
-              <span className="font-medium">
-                {type === "Inscripción" ? "Producto de inscripción" : "Productos participantes"}
-              </span>
+              <span className="font-medium">Productos participantes</span>
               <select
-                multiple={!isSingleProductSelection}
+                multiple
                 value={selectedProductIds}
                 onChange={(event) => {
                   const values = Array.from(event.target.selectedOptions).map((option) => option.value);
-                  setSelectedProductIds(isSingleProductSelection ? values.slice(0, 1) : values);
+                  setSelectedProductIds(values);
                 }}
                 className="h-32 w-full rounded-xl border border-zinc-200 bg-white px-3 py-2 text-sm text-zinc-900 shadow-sm focus:border-zinc-400 focus:outline-none dark:border-zinc-700 dark:bg-zinc-950 dark:text-zinc-100"
               >
