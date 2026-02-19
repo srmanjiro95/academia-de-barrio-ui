@@ -1,4 +1,4 @@
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { AddMemberModal } from "~/components/gym/AddMemberModal";
 import { CancelMembershipModal } from "~/components/gym/CancelMembershipModal";
 import { MemberSelectCard } from "~/components/gym/MemberSelectCard";
@@ -9,10 +9,10 @@ import { PromotionFormDrawer } from "~/components/gym/PromotionFormDrawer";
 import { PromotionSelectModal } from "~/components/gym/PromotionSelectModal";
 import { Card } from "~/components/common/Card";
 import { PageHeader } from "~/components/common/PageHeader";
-import { memberMemberships, gymMembers } from "~/data/gym";
-import { memberships } from "~/data/catalog";
-import { promotions as initialPromotions } from "~/data/promotions";
-import { gymApi } from "~/services/gymApi";
+import { LoadingOverlay } from "~/components/common/LoadingOverlay";
+import { api } from "~/services/api";
+import type { Membership } from "~/types/catalog/membership";
+import type { Product } from "~/types/catalog/product";
 import type { GymMember } from "~/types/gym/member";
 import type { MemberMembership } from "~/types/gym/member-membership";
 import type { Promotion } from "~/types/gym/promotion";
@@ -21,7 +21,8 @@ export default function MembresiasGym() {
   const [message, setMessage] = useState<string | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [assignments, setAssignments] =
-    useState<MemberMembership[]>(memberMemberships);
+    useState<MemberMembership[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
   const [editingAssignment, setEditingAssignment] =
     useState<MemberMembership | null>(null);
   const [selectedMemberId, setSelectedMemberId] = useState<string | null>(null);
@@ -31,12 +32,14 @@ export default function MembresiasGym() {
   const [startDate, setStartDate] = useState("");
   const [endDate, setEndDate] = useState("");
   const [paymentMethod, setPaymentMethod] = useState("Efectivo");
-  const [members, setMembers] = useState<GymMember[]>(gymMembers);
+  const [members, setMembers] = useState<GymMember[]>([]);
   const [isAddMemberOpen, setIsAddMemberOpen] = useState(false);
   const [isMemberSelectOpen, setIsMemberSelectOpen] = useState(false);
   const [cancelTarget, setCancelTarget] = useState<MemberMembership | null>(null);
   const [promotions, setPromotions] =
-    useState<Promotion[]>(initialPromotions);
+    useState<Promotion[]>([]);
+  const [membershipsCatalog, setMembershipsCatalog] = useState<Membership[]>([]);
+  const [productsCatalog, setProductsCatalog] = useState<Product[]>([]);
   const [promoCode, setPromoCode] = useState("");
   const [selectedPromotionId, setSelectedPromotionId] = useState<string | null>(
     null
@@ -44,13 +47,61 @@ export default function MembresiasGym() {
   const [isPromoSelectOpen, setIsPromoSelectOpen] = useState(false);
   const [isPromoFormOpen, setIsPromoFormOpen] = useState(false);
 
+
+
+  useEffect(() => {
+    let isMounted = true;
+
+    const loadData = async () => {
+      const [membersResponse, assignmentsResponse, promotionsResponse, membershipsResponse, productsResponse] = await Promise.all([
+        api.listMembers(),
+        api.listMemberMemberships(),
+        api.listPromotions(),
+        api.listMemberships(),
+        api.listProducts(),
+      ]);
+
+      if (!isMounted) return;
+
+      if (membersResponse.ok) {
+        setMembers(membersResponse.data);
+      } else {
+        setMessage(membersResponse.message ?? "No se pudieron cargar miembros.");
+      }
+
+      if (assignmentsResponse.ok) {
+        setAssignments(assignmentsResponse.data);
+      }
+
+      if (promotionsResponse.ok) {
+        setPromotions(promotionsResponse.data);
+      }
+
+      if (membershipsResponse.ok) {
+        setMembershipsCatalog(membershipsResponse.data);
+      }
+
+      if (productsResponse.ok) {
+        setProductsCatalog(productsResponse.data);
+      }
+
+      setIsLoading(false);
+    };
+
+    void loadData();
+
+    return () => {
+      isMounted = false;
+    };
+  }, []);
+
   const selectedMember = useMemo(
     () => members.find((member) => member.id === selectedMemberId) ?? null,
     [members, selectedMemberId]
   );
   const selectedMembership = useMemo(
     () =>
-      memberships.find((membership) => membership.id === selectedMembershipId) ??
+      membershipsCatalog.find((membership) => membership.id === selectedMembershipId) ??
       null,
     [selectedMembershipId]
   );
@@ -80,14 +131,22 @@ export default function MembresiasGym() {
       status: "Vigente",
     };
 
-    const response = await gymApi.assignMembership(newAssignment);
+    const response = editingAssignment
+      ? await api.updateMemberMembership(newAssignment)
+      : await api.assignMembership(newAssignment);
+    if (!response.ok) {
+      setMessage(response.message ?? "No se pudo asignar la membresía.");
+      setIsSubmitting(false);
+      return;
+    }
+
     setMessage(response.message ?? "Membresía asignada.");
     setAssignments((prev) =>
       editingAssignment
         ? prev.map((item) =>
-            item.id === editingAssignment.id ? newAssignment : item
+            item.id === editingAssignment.id ? response.data : item
           )
-        : [newAssignment, ...prev]
+        : [response.data, ...prev]
     );
     setEditingAssignment(null);
     setIsSubmitting(false);
@@ -103,6 +162,7 @@ export default function MembresiasGym() {
 
   return (
     <div className="space-y-8">
+      <LoadingOverlay isOpen={isLoading} />
       <PageHeader
         title="Membresías activas"
         description="Asignación, altas y vencimientos por miembro."
@@ -116,7 +176,7 @@ export default function MembresiasGym() {
                 Selecciona la membresía
               </h3>
               <div className="mt-3 grid gap-3 md:grid-cols-2">
-                {memberships.map((membership) => (
+                {membershipsCatalog.map((membership) => (
                   <MembershipSelectCard
                     key={membership.id}
                     membership={membership}
@@ -332,6 +392,7 @@ export default function MembresiasGym() {
       <AddMemberModal
         isOpen={isAddMemberOpen}
         onClose={() => setIsAddMemberOpen(false)}
+        membershipOptions={membershipsCatalog.map((membership) => ({ id: membership.id, name: membership.name }))}
         onCreate={(member) => {
           setMembers((prev) => [member, ...prev]);
           setSelectedMemberId(member.id);
@@ -364,12 +425,20 @@ export default function MembresiasGym() {
 
       {isPromoFormOpen ? (
         <PromotionFormDrawer
+          products={productsCatalog}
+          memberships={membershipsCatalog}
           onClose={() => setIsPromoFormOpen(false)}
           onCreate={(promotion) => {
-            setPromotions((prev) => [promotion, ...prev]);
-            setSelectedPromotionId(promotion.id);
-            setPromoCode(promotion.code);
-            setIsPromoFormOpen(false);
+            void api.createPromotion(promotion).then((response) => {
+              if (!response.ok) {
+                setMessage(response.message ?? "No se pudo crear la promoción.");
+                return;
+              }
+              setPromotions((prev) => [response.data, ...prev]);
+              setSelectedPromotionId(response.data.id);
+              setPromoCode(response.data.code);
+              setIsPromoFormOpen(false);
+            });
           }}
         />
       ) : null}

@@ -2,6 +2,7 @@ import { useEffect, useMemo, useState } from "react";
 import type { FormEvent } from "react";
 import { Card } from "~/components/common/Card";
 import { PageHeader } from "~/components/common/PageHeader";
+import { LoadingOverlay } from "~/components/common/LoadingOverlay";
 import { FileField } from "~/components/forms/FileField";
 import { FormSection } from "~/components/forms/FormSection";
 import { EmergencyContactsSection } from "~/components/forms/EmergencyContactsSection";
@@ -17,48 +18,76 @@ import {
   MemberDrawer,
   createEmptyRecord,
 } from "~/components/gym/MemberDrawer";
-import { developmentPlans, fightLogsByMember, gymMembers } from "~/data/gym";
-import { memberships } from "~/data/catalog";
-import { gymApi } from "~/services/gymApi";
+import { api } from "~/services/api";
 import type { GymMember } from "~/types/gym/member";
 import type { DevelopmentPlan } from "~/types/gym/plan";
 
 export default function MiembrosGym() {
   const [message, setMessage] = useState<string | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
-  const [members, setMembers] = useState<GymMember[]>(gymMembers);
+  const [refreshingQrMemberId, setRefreshingQrMemberId] = useState<string | null>(null);
+  const [members, setMembers] = useState<GymMember[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
   const [editingMember, setEditingMember] = useState<GymMember | null>(null);
   const [drawerMember, setDrawerMember] = useState<GymMember | null>(null);
   const [birthDate, setBirthDate] = useState("");
   const [membershipId, setMembershipId] = useState("none");
-  const formKey = editingMember?.id ?? "new";
+  const [formVersion, setFormVersion] = useState(0);
+  const formKey = editingMember?.id ?? `new-${formVersion}`;
   const [memberRecords, setMemberRecords] = useState<
     Record<string, Record<FightCategory, CategoryRecord>>
-  >(() =>
-    gymMembers.reduce((acc, member) => {
-      acc[member.id] = createEmptyRecord();
-      return acc;
-    }, {} as Record<string, Record<FightCategory, CategoryRecord>>)
-  );
-  const [plansCatalog, setPlansCatalog] = useState<DevelopmentPlan[]>(
-    developmentPlans
-  );
+  >({});
+  const [plansCatalog, setPlansCatalog] = useState<DevelopmentPlan[]>([]);
+  const [membershipsCatalog, setMembershipsCatalog] = useState<{ id: string; name: string }[]>([]);
   const [memberPlans, setMemberPlans] = useState<
     Record<string, DevelopmentPlan | null>
-  >(() =>
-    gymMembers.reduce((acc, member) => {
-      acc[member.id] = null;
-      return acc;
-    }, {} as Record<string, DevelopmentPlan | null>)
-  );
+  >({});
   const [fightLogs, setFightLogs] = useState<
     Record<string, MemberDrawerProps["fightLogs"]>
-  >(() =>
-    gymMembers.reduce((acc, member) => {
-      acc[member.id] = fightLogsByMember[member.id] ?? [];
-      return acc;
-    }, {} as Record<string, MemberDrawerProps["fightLogs"]>)
-  );
+  >({});
+
+
+
+  useEffect(() => {
+    let isMounted = true;
+
+    const loadData = async () => {
+      const [membersResponse, plansResponse, membershipsResponse] = await Promise.all([
+        api.listMembers(),
+        api.listPlans(),
+        api.listMemberships(),
+      ]);
+
+      if (!isMounted) return;
+
+      if (membersResponse.ok) {
+        setMembers(membersResponse.data);
+      } else {
+        setMessage(membersResponse.message ?? "No se pudieron cargar miembros.");
+      }
+
+      if (plansResponse.ok) {
+        setPlansCatalog(plansResponse.data);
+      }
+
+      if (membershipsResponse.ok) {
+        setMembershipsCatalog(
+          membershipsResponse.data.map((membership) => ({
+            id: membership.id,
+            name: membership.name,
+          }))
+        );
+      }
+
+      setIsLoading(false);
+    };
+
+    void loadData();
+
+    return () => {
+      isMounted = false;
+    };
+  }, []);
 
   useEffect(() => {
     setBirthDate(editingMember?.birthDate ?? "");
@@ -71,9 +100,22 @@ export default function MiembrosGym() {
     setMessage(null);
     const formData = new FormData(event.currentTarget);
     const payload = Object.fromEntries(formData) as Record<string, string>;
+    const imageFile = formData.get("imageFile");
+
+    let imageUrl = editingMember?.imageUrl ?? "";
+
+    if (imageFile instanceof File && imageFile.size > 0) {
+      const uploadResponse = await api.uploadImage(imageFile, "members");
+      if (!uploadResponse.ok) {
+        setMessage(uploadResponse.message ?? "No se pudo subir la foto del miembro.");
+        setIsSubmitting(false);
+        return;
+      }
+      imageUrl = uploadResponse.data.image_url;
+    }
 
     const membershipSelection =
-      memberships.find((membership) => membership.id === membershipId) ?? null;
+      membershipsCatalog.find((membership) => membership.id === membershipId) ?? null;
     const manualMembershipName = payload.membership?.trim();
 
     const newMember: GymMember = {
@@ -107,24 +149,38 @@ export default function MiembrosGym() {
         : manualMembershipName
         ? { id: `MEM-${Date.now()}`, name: manualMembershipName }
         : null,
+      imageUrl,
     };
 
-    const response = await gymApi.createMember(newMember);
-    setMessage(response.message ?? "Miembro registrado.");
+    const isEditing = Boolean(editingMember);
+    const response = isEditing
+      ? await api.updateMember(newMember)
+      : await api.createMember(newMember);
+    if (!response.ok) {
+      setMessage(response.message ?? "No se pudo registrar el miembro.");
+      setIsSubmitting(false);
+      return;
+    }
+
+    setMessage(response.message ?? (isEditing ? "Miembro actualizado." : "Miembro registrado."));
+
     setMembers((prev) =>
-      editingMember
+      isEditing
         ? prev.map((member) =>
-            member.id === editingMember.id ? newMember : member
+            member.id === editingMember?.id ? response.data : member
           )
-        : [newMember, ...prev]
+        : [response.data, ...prev]
     );
-    if (!editingMember) {
+    if (!isEditing) {
       setMemberRecords((prev) => ({
         ...prev,
-        [newMember.id]: createEmptyRecord(),
+        [response.data.id]: createEmptyRecord(),
       }));
-      setMemberPlans((prev) => ({ ...prev, [newMember.id]: null }));
-      setFightLogs((prev) => ({ ...prev, [newMember.id]: [] }));
+      setMemberPlans((prev) => ({ ...prev, [response.data.id]: null }));
+      setFightLogs((prev) => ({ ...prev, [response.data.id]: [] }));
+      setBirthDate("");
+      setMembershipId("none");
+      setFormVersion((prev) => prev + 1);
     }
     setEditingMember(null);
     setIsSubmitting(false);
@@ -170,6 +226,26 @@ export default function MiembrosGym() {
     }));
   };
 
+  const handleRefreshQr = async (memberId: string) => {
+    setRefreshingQrMemberId(memberId);
+    const response = await api.refreshMemberQr(memberId);
+
+    if (!response.ok) {
+      setMessage(response.message ?? "No se pudo actualizar el QR del miembro.");
+      setRefreshingQrMemberId(null);
+      return;
+    }
+
+    setMessage(response.message ?? "QR actualizado y correo enviado.");
+
+    setMembers((prev) =>
+      prev.map((member) => (member.id === memberId ? response.data : member))
+    );
+
+    setDrawerMember((prev) => (prev?.id === memberId ? response.data : prev));
+    setRefreshingQrMemberId(null);
+  };
+
   const handleCreateCustomPlan: MemberDrawerProps["onCreateCustomPlan"] = (
     memberId,
     plan,
@@ -186,6 +262,7 @@ export default function MiembrosGym() {
 
   return (
     <div className="space-y-8">
+      <LoadingOverlay isOpen={isLoading} />
       <PageHeader
         title="Registro de miembros"
         description="Alta, baja y consulta de miembros del gimnasio."
@@ -195,7 +272,7 @@ export default function MiembrosGym() {
         <Card>
           <form key={formKey} onSubmit={handleSubmit} className="space-y-6">
             <FormSection title="Datos del miembro">
-              <FileField label="Foto" name="photo" accept="image/*" />
+              <FileField label="Foto" name="imageFile" accept="image/*" />
               <TextField
                 label="Nombre"
                 name="firstName"
@@ -258,7 +335,7 @@ export default function MiembrosGym() {
                 name="membershipId"
                 options={[
                   { label: "Sin asignar", value: "none" },
-                  ...memberships.map((membership) => ({
+                  ...membershipsCatalog.map((membership) => ({
                     label: membership.name,
                     value: membership.id,
                   })),
@@ -408,6 +485,16 @@ export default function MiembrosGym() {
                   <p className="mt-1 text-xs">{member.email}</p>
                 </button>
                 <div className="mt-3 flex items-center gap-2">
+                  <button
+                    type="button"
+                    onClick={() => {
+                      void handleRefreshQr(member.id);
+                    }}
+                    disabled={refreshingQrMemberId === member.id}
+                    className="rounded-xl border border-emerald-200 px-3 py-1 text-xs font-semibold text-emerald-700 hover:bg-emerald-50 disabled:cursor-not-allowed disabled:opacity-60 dark:border-emerald-800 dark:text-emerald-300 dark:hover:bg-emerald-950/40"
+                  >
+                    {refreshingQrMemberId === member.id ? "Actualizando QR..." : "Refresh QR"}
+                  </button>
                   <button
                     type="button"
                     onClick={() => setEditingMember(member)}

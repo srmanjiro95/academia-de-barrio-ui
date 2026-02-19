@@ -1,19 +1,55 @@
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { Card } from "~/components/common/Card";
 import { PageHeader } from "~/components/common/PageHeader";
+import { LoadingOverlay } from "~/components/common/LoadingOverlay";
 import { AddPlanDrawer } from "~/components/gym/AddPlanDrawer";
 import { PlanesDrawer } from "~/components/gym/PlanesDrawer";
-import { developmentPlans, gymMembers, planMembersByPlan } from "~/data/gym";
+import { api } from "~/services/api";
 import type { DevelopmentPlan } from "~/types/gym/plan";
+import type { GymMember } from "~/types/gym/member";
 
 export default function PlanesGym() {
   const [selectedPlan, setSelectedPlan] = useState<DevelopmentPlan | null>(null);
+  const [message, setMessage] = useState<string | null>(null);
   const [isAddPlanOpen, setIsAddPlanOpen] = useState(false);
-  const [plans, setPlans] = useState<DevelopmentPlan[]>(developmentPlans);
+  const [plans, setPlans] = useState<DevelopmentPlan[]>([]);
+  const [members, setMembers] = useState<GymMember[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
   const [editingPlan, setEditingPlan] = useState<DevelopmentPlan | null>(null);
-  const [planMembers, setPlanMembers] = useState<Record<string, string[]>>(
-    () => ({ ...planMembersByPlan })
-  );
+  const [planMembers, setPlanMembers] = useState<Record<string, string[]>>({});
+
+
+
+  useEffect(() => {
+    let isMounted = true;
+
+    const loadData = async () => {
+      const [plansResponse, membersResponse] = await Promise.all([
+        api.listPlans(),
+        api.listMembers(),
+      ]);
+
+      if (!isMounted) return;
+
+      if (plansResponse.ok) {
+        setPlans(plansResponse.data);
+      } else {
+        setMessage(plansResponse.message ?? "No se pudieron cargar planes.");
+      }
+
+      if (membersResponse.ok) {
+        setMembers(membersResponse.data);
+      }
+
+      setIsLoading(false);
+    };
+
+    void loadData();
+
+    return () => {
+      isMounted = false;
+    };
+  }, []);
 
   const selectedPlanMembers = useMemo(() => {
     if (!selectedPlan) return [];
@@ -28,23 +64,43 @@ export default function PlanesGym() {
     });
   };
 
-  const handleCreatePlan = (plan: DevelopmentPlan, memberIds: string[]) => {
+  const handleCreatePlan = async (plan: DevelopmentPlan, memberIds: string[]) => {
+    const planPayload: DevelopmentPlan = {
+      ...plan,
+      memberId: memberIds[0],
+      memberName: memberIds[0]
+        ? members.find((member) => member.id === memberIds[0])?.firstName ?? plan.memberName
+        : plan.memberName,
+    };
+
+    const response = editingPlan
+      ? await api.updatePlan(planPayload)
+      : await api.createPlan(planPayload);
+    if (!response.ok) {
+      setMessage(response.message ?? "No se pudo guardar el plan.");
+      return;
+    }
+
+    setMessage(response.message ?? "Plan guardado.");
     setPlans((prev) =>
       editingPlan
-        ? prev.map((item) => (item.id === editingPlan.id ? plan : item))
-        : [plan, ...prev]
+        ? prev.map((item) => (item.id === editingPlan.id ? response.data : item))
+        : [response.data, ...prev]
     );
-    setPlanMembers((prev) => ({ ...prev, [plan.id]: memberIds }));
+    setPlanMembers((prev) => ({ ...prev, [response.data.id]: memberIds }));
     setIsAddPlanOpen(false);
     setEditingPlan(null);
   };
 
   return (
     <div className="space-y-8">
+      <LoadingOverlay isOpen={isLoading} />
       <PageHeader
         title="Planes de desarrollo"
         description="Consulta los planes activos y gestiona los miembros vinculados."
       />
+
+      {message ? <p className="text-sm text-emerald-600">{message}</p> : null}
 
       <Card>
         <div className="flex flex-wrap items-center justify-between gap-3">
@@ -103,7 +159,7 @@ export default function PlanesGym() {
       {selectedPlan ? (
         <PlanesDrawer
           plan={selectedPlan}
-          members={gymMembers}
+          members={members}
           assignedMemberIds={selectedPlanMembers}
           onClose={() => setSelectedPlan(null)}
           onAddMembers={(memberIds) =>
@@ -114,7 +170,7 @@ export default function PlanesGym() {
 
       {isAddPlanOpen ? (
         <AddPlanDrawer
-          members={gymMembers}
+          members={members}
           onClose={() => {
             setIsAddPlanOpen(false);
             setEditingPlan(null);

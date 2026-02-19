@@ -1,20 +1,83 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { Card } from "~/components/common/Card";
 import { ConfirmationModal } from "~/components/common/ConfirmationModal";
 import { PageHeader } from "~/components/common/PageHeader";
+import { LoadingOverlay } from "~/components/common/LoadingOverlay";
 import { PromotionCard } from "~/components/gym/PromotionCard";
 import { PromotionFormDrawer } from "~/components/gym/PromotionFormDrawer";
-import { promotions as seedPromotions } from "~/data/promotions";
+import { api } from "~/services/api";
+import type { Membership } from "~/types/catalog/membership";
+import type { Product } from "~/types/catalog/product";
 import type { Promotion } from "~/types/gym/promotion";
 
 export default function PromocionesCatalogo() {
-  const [promotions, setPromotions] = useState<Promotion[]>(seedPromotions);
+  const [promotions, setPromotions] = useState<Promotion[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
+  const [message, setMessage] = useState<string | null>(null);
   const [isFormOpen, setIsFormOpen] = useState(false);
   const [editingPromotion, setEditingPromotion] = useState<Promotion | null>(null);
   const [deleteTarget, setDeleteTarget] = useState<Promotion | null>(null);
+  const [products, setProducts] = useState<Product[]>([]);
+  const [memberships, setMemberships] = useState<Membership[]>([]);
+
+  useEffect(() => {
+    let isMounted = true;
+
+    const loadData = async () => {
+      const [promotionsResponse, productsResponse, membershipsResponse] =
+        await Promise.all([api.listPromotions(), api.listProducts(), api.listMemberships()]);
+      if (!isMounted) return;
+      if (promotionsResponse.ok) {
+        setPromotions(promotionsResponse.data);
+      } else {
+        setMessage(promotionsResponse.message ?? "No se pudieron cargar las promociones.");
+      }
+
+      if (productsResponse.ok) {
+        setProducts(productsResponse.data);
+      }
+
+      if (membershipsResponse.ok) {
+        setMemberships(membershipsResponse.data);
+      }
+
+      setIsLoading(false);
+    };
+
+    void loadData();
+
+    return () => {
+      isMounted = false;
+    };
+  }, []);
+
+  const handleUpsertPromotion = async (promotion: Promotion) => {
+    const response = editingPromotion
+      ? await api.updatePromotion(promotion)
+      : await api.createPromotion(promotion);
+    if (!response.ok) {
+      setMessage(response.message ?? "No se pudo guardar la promoción.");
+      return;
+    }
+
+    setMessage(response.message ?? "Promoción guardada.");
+    const savedPromotion = response.data;
+
+    if (editingPromotion) {
+      setPromotions((prev) =>
+        prev.map((item) => (item.id === editingPromotion.id ? savedPromotion : item))
+      );
+      setEditingPromotion(null);
+      return;
+    }
+
+    setPromotions((prev) => [savedPromotion, ...prev]);
+    setIsFormOpen(false);
+  };
 
   return (
     <div className="space-y-8">
+      <LoadingOverlay isOpen={isLoading} />
       <PageHeader
         title="Catálogo de promociones"
         description="Crea y administra promociones para inscripción y descuentos."
@@ -28,6 +91,8 @@ export default function PromocionesCatalogo() {
           </button>
         }
       />
+
+      {message ? <p className="text-sm text-emerald-600">{message}</p> : null}
 
       <Card>
         <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
@@ -47,23 +112,23 @@ export default function PromocionesCatalogo() {
 
       {isFormOpen ? (
         <PromotionFormDrawer
+          products={products}
+          memberships={memberships}
           onClose={() => setIsFormOpen(false)}
           onCreate={(promotion) => {
-            setPromotions((prev) => [promotion, ...prev]);
-            setIsFormOpen(false);
+            void handleUpsertPromotion(promotion);
           }}
         />
       ) : null}
 
       {editingPromotion ? (
         <PromotionFormDrawer
+          products={products}
+          memberships={memberships}
           initialPromotion={editingPromotion}
           onClose={() => setEditingPromotion(null)}
           onCreate={(promotion) => {
-            setPromotions((prev) =>
-              prev.map((item) => (item.id === promotion.id ? promotion : item))
-            );
-            setEditingPromotion(null);
+            void handleUpsertPromotion(promotion);
           }}
         />
       ) : null}

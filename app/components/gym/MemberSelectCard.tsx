@@ -46,7 +46,7 @@ export function MemberSelectCard({
         ) : null}
       </div>
       <p className="mt-2 text-xs text-zinc-500 dark:text-zinc-400">
-        {member.membership} · {member.status}
+        {member.membership?.name ?? "Sin membresía"} · {member.status}
       </p>
     </button>
   );

@@ -1,51 +1,103 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import type { FormEvent } from "react";
 import { Card } from "~/components/common/Card";
 import { PageHeader } from "~/components/common/PageHeader";
+import { LoadingOverlay } from "~/components/common/LoadingOverlay";
 import { RealtimeStatus } from "~/components/common/RealtimeStatus";
 import { FileField } from "~/components/forms/FileField";
 import { TextAreaField } from "~/components/forms/TextAreaField";
 import { TextField } from "~/components/forms/TextField";
-import { products } from "~/data/catalog";
-import { gymApi } from "~/services/gymApi";
-import type { Product } from "~/types/catalog/product";
+import { api } from "~/services/api";
+import { PRODUCT_CATEGORIES, type Product } from "~/types/catalog/product";
 
 export default function InventarioCatalogo() {
   const [message, setMessage] = useState<string | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
-  const [productList, setProductList] = useState<Product[]>(products);
+  const [productList, setProductList] = useState<Product[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
   const [editingProduct, setEditingProduct] = useState<Product | null>(null);
+  const [formVersion, setFormVersion] = useState(0);
 
-  const formKey = editingProduct?.id ?? "new";
+  useEffect(() => {
+    let isMounted = true;
+
+    const loadData = async () => {
+      const response = await api.listProducts();
+      if (!isMounted) return;
+      if (response.ok) {
+        setProductList(response.data);
+      } else {
+        setMessage(response.message ?? "No se pudieron cargar los productos.");
+      }
+      setIsLoading(false);
+    };
+
+    void loadData();
+
+    return () => {
+      isMounted = false;
+    };
+  }, []);
+
+
+  const formKey = editingProduct?.id ?? `new-${formVersion}`;
 
   const handleSubmit = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
     setIsSubmitting(true);
     setMessage(null);
     const formData = new FormData(event.currentTarget);
-    const payload = Object.fromEntries(formData) as Record<string, string>;
+    const imageFile = formData.get("imageFile");
+
+    let imageUrl = editingProduct?.imageUrl ?? "";
+
+    if (imageFile instanceof File && imageFile.size > 0) {
+      const uploadResponse = await api.uploadImage(imageFile, "inventory");
+      if (!uploadResponse.ok) {
+        setMessage(uploadResponse.message ?? "No se pudo subir la imagen del producto.");
+        setIsSubmitting(false);
+        return;
+      }
+      imageUrl = uploadResponse.data.image_url;
+    }
 
     const newProduct: Product = {
       id: editingProduct?.id ?? `PROD-${Date.now()}`,
-      name: payload.name ?? "",
-      units: Number(payload.units ?? 0),
-      price: Number(payload.price ?? 0),
-      description: payload.description ?? "",
+      name: String(formData.get("name") ?? ""),
+      units: Number(formData.get("units") ?? 0),
+      price: Number(formData.get("price") ?? 0),
+      description: String(formData.get("description") ?? ""),
+      imageUrl,
+      category: (formData.get("category") as Product["category"]) ?? "Otros",
     };
 
-    const response = await gymApi.createProduct(newProduct);
-    setMessage(response.message ?? "Producto agregado.");
+    const isEditing = Boolean(editingProduct);
+    const response = isEditing
+      ? await api.updateProduct(newProduct)
+      : await api.createProduct(newProduct);
+    if (!response.ok) {
+      setMessage(response.message ?? "No se pudo guardar el producto.");
+      setIsSubmitting(false);
+      return;
+    }
+
+    setMessage(response.message ?? (isEditing ? "Producto actualizado." : "Producto agregado."));
+
     setProductList((prev) =>
-      editingProduct
-        ? prev.map((item) => (item.id === editingProduct.id ? newProduct : item))
-        : [newProduct, ...prev]
+      isEditing
+        ? prev.map((item) => (item.id === editingProduct?.id ? response.data : item))
+        : [response.data, ...prev]
     );
     setEditingProduct(null);
+    if (!isEditing) {
+      setFormVersion((prev) => prev + 1);
+    }
     setIsSubmitting(false);
   };
 
   return (
     <div className="space-y-8">
+      <LoadingOverlay isOpen={isLoading} />
       <PageHeader
         title="Catálogo de inventario"
         description="Inventario en tiempo real para ventas y reposición."
@@ -57,7 +109,7 @@ export default function InventarioCatalogo() {
           <form key={formKey} onSubmit={handleSubmit} className="space-y-4">
             <FileField
               label="Foto del producto"
-              name="imageUrl"
+              name="imageFile"
               accept="image/*"
               helperText="Sube una imagen principal del producto."
             />
@@ -91,6 +143,22 @@ export default function InventarioCatalogo() {
               className="md:col-span-2"
               defaultValue={editingProduct?.description}
             />
+            <div className="space-y-2">
+              <label className="text-sm font-medium text-zinc-700 dark:text-zinc-200">
+                Categoría
+              </label>
+              <select
+                name="category"
+                defaultValue={editingProduct?.category ?? "Otros"}
+                className="w-full rounded-xl border border-zinc-200 bg-white px-3 py-2 text-sm text-zinc-900 shadow-sm focus:border-zinc-400 focus:outline-none dark:border-zinc-700 dark:bg-zinc-950 dark:text-zinc-100"
+              >
+                {PRODUCT_CATEGORIES.map((category) => (
+                  <option key={category} value={category}>
+                    {category}
+                  </option>
+                ))}
+              </select>
+            </div>
             <button
               type="submit"
               className="rounded-xl bg-emerald-600 px-4 py-2 text-sm font-semibold text-white"
@@ -146,7 +214,7 @@ export default function InventarioCatalogo() {
                     </span>
                   </div>
                   <p className="text-xs text-zinc-500 dark:text-zinc-400">
-                    {product.units} unidades disponibles
+                    {product.units} unidades disponibles · {product.category ?? "Sin categoría"}
                   </p>
                   <p className="text-xs text-zinc-500 dark:text-zinc-400">
                     {product.description}

@@ -130,7 +130,7 @@ export function MemberDrawer({
               {member.firstName} {member.lastName}
             </h2>
             <p className="text-sm text-zinc-500 dark:text-zinc-400">
-              {member.membership} · {member.status}
+              {member.membership?.name ?? "Sin membresía"} · {member.status}
             </p>
           </div>
           <button

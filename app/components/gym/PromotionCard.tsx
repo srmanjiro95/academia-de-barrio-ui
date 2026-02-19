@@ -8,6 +8,26 @@ interface PromotionCardProps {
   onDelete?: () => void;
 }
 
+function getScopeLabel(promotion: Promotion) {
+  if (promotion.type === "Inscripción") return "Aplica a inscripción";
+  if (promotion.type === "Membresía") {
+    if (promotion.membershipIds?.length) {
+      return `Membresías específicas (${promotion.membershipIds.length})`;
+    }
+    return "Todas las membresías";
+  }
+
+  if (promotion.scope === "Categoría" && promotion.category) {
+    return `Categoría: ${promotion.category}`;
+  }
+
+  if (promotion.scope === "Productos específicos") {
+    return `Productos específicos (${promotion.productIds?.length ?? 0})`;
+  }
+
+  return promotion.scope ?? "Toda la tienda";
+}
+
 export function PromotionCard({
   promotion,
   isSelected = false,
@@ -16,10 +36,8 @@ export function PromotionCard({
   onDelete,
 }: PromotionCardProps) {
   const amountLabel =
-    promotion.type === "Descuento"
-      ? promotion.discountType === "Porcentaje"
-        ? `${promotion.amount}%`
-        : `$${promotion.amount.toLocaleString("es-MX")}`
+    promotion.discountType === "Porcentaje"
+      ? `${promotion.amount}%`
       : `$${promotion.amount.toLocaleString("es-MX")}`;
 
   const cardClasses = `flex h-full flex-col gap-3 rounded-2xl border p-4 text-left transition ${
@@ -41,6 +59,9 @@ export function PromotionCard({
         <p className="text-sm font-semibold">{promotion.title}</p>
         <p className="text-xs text-zinc-500 dark:text-zinc-400">
           {promotion.type} · {amountLabel}
+        </p>
+        <p className="text-xs text-zinc-500 dark:text-zinc-400">
+          {getScopeLabel(promotion)}
         </p>
         <p className="text-xs text-zinc-500 dark:text-zinc-400">
           {promotion.startDate} → {promotion.endDate}
